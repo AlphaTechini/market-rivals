@@ -1,2 +1,7 @@
 allowBuilds:
   esbuild: true
+
+overrides:
+  '@esbuild-kit/core-utils>esbuild': 0.25.12
+  '@esbuild-kit/esm-loader>esbuild': 0.25.12
+  cookie: 0.7.2

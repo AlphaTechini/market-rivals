@@ -3,8 +3,17 @@ import postgres from 'postgres';
 import * as schema from './schema';
 import { env } from '$env/dynamic/private';
 
-if (!env.DATABASE_URL) throw new Error('DATABASE_URL is not set');
+type Database = ReturnType<typeof drizzle<typeof schema>>;
 
-const client = postgres(env.DATABASE_URL);
+let client: ReturnType<typeof postgres> | undefined;
+let database: Database | undefined;
 
-export const db = drizzle(client, { schema });
+export function getDb(): Database {
+	if (!env.DATABASE_URL) throw new Error('DATABASE_URL is not set');
+	if (!database) {
+		client = postgres(env.DATABASE_URL, { max: 5, ssl: 'require' });
+		database = drizzle(client, { schema });
+	}
+
+	return database;
+}
