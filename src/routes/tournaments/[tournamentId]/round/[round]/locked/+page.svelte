@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import BrandHeader from '$lib/market-rivals/BrandHeader.svelte';
+	import Countdown from '$lib/market-rivals/Countdown.svelte';
 </script>
 
 <svelte:head><title>Position Locked | Market Rivals</title></svelte:head>
@@ -15,7 +16,9 @@
 		<div class="lobby-ring">
 			<div class="arena-ring">
 				<div class="ring-copy">
-					<small>Market closes in</small><strong>08:42</strong><small>BTC / USD</small>
+					<small>Market closes in</small><strong><Countdown initialSeconds={522} /></strong><small
+						>BTC / USD</small
+					>
 				</div>
 			</div>
 		</div>

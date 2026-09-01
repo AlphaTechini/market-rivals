@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import ArenaRing from '$lib/market-rivals/ArenaRing.svelte';
 	import BrandHeader from '$lib/market-rivals/BrandHeader.svelte';
+	import Countdown from '$lib/market-rivals/Countdown.svelte';
 	import PlayerList from '$lib/market-rivals/PlayerList.svelte';
 	import { lobbyPlayers } from '$lib/market-rivals/data';
 </script>
@@ -16,7 +16,12 @@
 		<h1>Alpha's Weekend Arena</h1>
 		<p class="sub">The host starts the arena when everyone is ready.</p>
 		<div class="lobby-ring">
-			<ArenaRing label="Tournament starts in" value="04:18" detail="10 ROUNDS · 1 USDso EACH" />
+			<div class="arena-ring">
+				<div class="ring-copy">
+					<small>Tournament starts in</small><strong><Countdown initialSeconds={258} /></strong
+					><small>10 ROUNDS · 1 USDso EACH</small>
+				</div>
+			</div>
 		</div>
 		<div class="statgrid">
 			<div class="stat"><small>Asset</small><strong>BTC</strong></div>

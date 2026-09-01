@@ -2,6 +2,18 @@
 	import { resolve } from '$app/paths';
 	import ArenaRing from '$lib/market-rivals/ArenaRing.svelte';
 	import BrandHeader from '$lib/market-rivals/BrandHeader.svelte';
+	import ProfileSetupModal from '$lib/market-rivals/ProfileSetupModal.svelte';
+
+	let profileSetupOpen = $state(false);
+
+	function openProfileSetup() {
+		profileSetupOpen = true;
+	}
+
+	function finishProfileSetup() {
+		profileSetupOpen = false;
+		window.location.href = resolve('/dashboard');
+	}
 </script>
 
 <svelte:head>
@@ -12,7 +24,7 @@
 	/>
 </svelte:head>
 
-<BrandHeader mode="landing" />
+<BrandHeader mode="landing" onConnect={openProfileSetup} />
 
 <main>
 	<section class="wrap hero">
@@ -24,7 +36,8 @@
 				positions, win rounds, climb the table, and prove who reads the market best.
 			</p>
 			<div class="actions" style="margin-top: 30px">
-				<a class="btn primary" href={resolve('/dashboard')}>Enter the arena</a>
+				<button class="btn primary" type="button" onclick={openProfileSetup}>Enter the arena</button
+				>
 				<a class="btn ghost" href={resolve('/#how')}>See how it works</a>
 			</div>
 			<p class="fine">Non-custodial · Capped risk · On-chain settlement on Somnia</p>
@@ -73,7 +86,9 @@
 					Market Rivals adds the social layer around objective, recurring DreamDEX markets: public
 					discovery, private rooms, and multi-round scoring that rewards consistency.
 				</p>
-				<a class="btn primary" href={resolve('/dashboard')}>Connect and compete</a>
+				<button class="btn primary" type="button" onclick={openProfileSetup}
+					>Connect and compete</button
+				>
 			</div>
 		</div>
 	</section>
@@ -83,3 +98,9 @@
 	<span>Market Rivals · Powered by DreamDEX Event Contracts</span>
 	<span>Shannon testnet prototype</span>
 </footer>
+
+<ProfileSetupModal
+	open={profileSetupOpen}
+	onClose={() => (profileSetupOpen = false)}
+	onComplete={finishProfileSetup}
+/>

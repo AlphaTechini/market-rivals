@@ -6,14 +6,33 @@
 	let tournamentName = $state("Alpha's Weekend Arena");
 	let asset = $state('BTC / USD');
 	let visibility = $state('Public - listed for everyone');
-	let rounds = $state('10 rounds');
-	let players = $state('16 players');
+	let roundInterval = $state(15);
+	let rounds = $state(10);
+	let players = $state(16);
 	let starts = $state('2026-09-02T18:00');
-	let entry = $state('1 USDso');
+	let entry = $state(1);
 	let description = $state('Ten rounds. One leaderboard. Bring your best BTC calls.');
+	let validationError = $state('');
 
 	function createTournament(event: SubmitEvent) {
 		event.preventDefault();
+		if (!Number.isInteger(rounds) || rounds < 1) {
+			validationError = 'Number of rounds must be a whole number greater than zero.';
+			return;
+		}
+		if (!Number.isInteger(players) || players < 2 || players > 100) {
+			validationError = 'Maximum players must be a whole number between 2 and 100.';
+			return;
+		}
+		if (!Number.isInteger(roundInterval) || roundInterval < 3 || roundInterval > 20) {
+			validationError = 'Round interval must be a whole number between 3 and 20 minutes.';
+			return;
+		}
+		if (entry < 1) {
+			validationError = 'Entry fee must be at least 1 USDso per round.';
+			return;
+		}
+		validationError = '';
 		void goto(resolve('/tournaments/alpha-weekend/created'));
 	}
 </script>
@@ -56,43 +75,52 @@
 			<div class="two">
 				<div class="field">
 					<label for="rounds">Number of rounds</label>
-					<select id="rounds" bind:value={rounds}>
-						<option>5 rounds</option>
-						<option>10 rounds</option>
-						<option>20 rounds</option>
-					</select>
+					<input id="rounds" type="number" min="1" step="1" bind:value={rounds} required />
 				</div>
 				<div class="field">
 					<label for="players">Maximum players</label>
-					<select id="players" bind:value={players}>
-						<option>8 players</option>
-						<option>16 players</option>
-						<option>32 players</option>
-					</select>
+					<input
+						id="players"
+						type="number"
+						min="2"
+						max="100"
+						step="1"
+						bind:value={players}
+						required
+					/>
 				</div>
 			</div>
 			<div class="two">
 				<div class="field">
-					<label for="starts">Starts</label>
-					<input id="starts" type="datetime-local" bind:value={starts} />
+					<label for="interval">Minutes between rounds</label>
+					<input
+						id="interval"
+						type="number"
+						min="3"
+						max="20"
+						step="1"
+						bind:value={roundInterval}
+						required
+					/>
 				</div>
 				<div class="field">
-					<label for="entry">Entry per round</label>
-					<select id="entry" bind:value={entry}>
-						<option>1 USDso</option>
-						<option>2 USDso</option>
-						<option>5 USDso</option>
-					</select>
+					<label for="starts">Starts</label>
+					<input id="starts" type="datetime-local" bind:value={starts} required />
 				</div>
+			</div>
+			<div class="field">
+				<label for="entry">Entry fee per round (USDso)</label>
+				<input id="entry" type="number" min="1" step="0.01" bind:value={entry} required />
 			</div>
 			<div class="field">
 				<label for="description">Short description</label>
 				<textarea id="description" rows="3" bind:value={description}></textarea>
 			</div>
 			<p class="fine">
-				Prototype rule: every player uses the same configured stake per round. Scoring is based on
-				settled DreamDEX positions, not an off-chain price guess.
+				Every player uses the same 10-contract stake per round. Scoring is based on settled DreamDEX
+				positions, not an off-chain price guess.
 			</p>
+			{#if validationError}<p class="form-error">{validationError}</p>{/if}
 			<button class="btn primary full" type="submit">Create tournament</button>
 		</form>
 	</section>

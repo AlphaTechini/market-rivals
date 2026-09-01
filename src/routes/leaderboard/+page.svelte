@@ -1,7 +1,9 @@
 <script lang="ts">
+	import Avatar from '$lib/market-rivals/Avatar.svelte';
 	import AppTabs from '$lib/market-rivals/AppTabs.svelte';
 	import BrandHeader from '$lib/market-rivals/BrandHeader.svelte';
-	import { globalStandings } from '$lib/market-rivals/data';
+	import PlayerName from '$lib/market-rivals/PlayerName.svelte';
+	import { globalStandings, profileFor } from '$lib/market-rivals/data';
 </script>
 
 <svelte:head><title>Global Leaderboard | Market Rivals</title></svelte:head>
@@ -30,13 +32,19 @@
 
 	<section class="podium" aria-label="Top three players">
 		<div class="podium-item">
-			<span class="medal">Silver</span><strong>Zoe</strong><small>8,980 pts</small>
+			<span class="medal">Silver</span><Avatar name="Zoe" initials="ZO" size="small" /><strong
+				>Zoe</strong
+			><small>8,980 pts</small>
 		</div>
 		<div class="podium-item first">
-			<span class="medal">Gold</span><strong>Ava</strong><small>10,240 pts · 14 tournaments</small>
+			<span class="medal">Gold</span><Avatar name="Ava" initials="AV" size="small" /><strong
+				>Ava</strong
+			><small>10,240 pts · 14 tournaments</small>
 		</div>
 		<div class="podium-item">
-			<span class="medal">Bronze</span><strong>Alpha</strong><small>8,410 pts</small>
+			<span class="medal">Bronze</span><Avatar name="Alpha" initials="AL" size="small" /><strong
+				>Alpha</strong
+			><small>8,410 pts</small>
 		</div>
 	</section>
 
@@ -47,8 +55,10 @@
 				{#each globalStandings as standing (standing.player)}
 					<tr>
 						<td
-							><strong>{standing.player}</strong>{#if standing.player === 'Alpha'}
-								<span class="pill">YOU</span>{/if}</td
+							><PlayerName
+								profile={profileFor(standing.player)}
+								badge={standing.player === 'Alpha' ? 'YOU' : undefined}
+							/></td
 						>
 						<td>{standing.tournaments}</td><td>{standing.winRate}</td><td
 							><strong>{standing.points.toLocaleString()}</strong></td

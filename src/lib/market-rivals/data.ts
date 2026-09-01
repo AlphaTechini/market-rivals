@@ -1,3 +1,5 @@
+import type { Pathname } from '$app/types';
+
 export type Tournament = {
 	name: string;
 	status: 'JOINING' | 'LIVE';
@@ -11,6 +13,7 @@ export type Tournament = {
 export type Player = {
 	name: string;
 	initials: string;
+	avatarUrl?: string;
 	status?: string;
 };
 
@@ -21,6 +24,19 @@ export type Standing = {
 	round: string;
 	total: number;
 };
+
+export const playerProfiles: Record<string, Player> = {
+	Alpha: { name: 'Alpha', initials: 'AL' },
+	Ava: { name: 'Ava', initials: 'AV' },
+	Milo: { name: 'Milo', initials: 'MI' },
+	Zoe: { name: 'Zoe', initials: 'ZO' },
+	Liam: { name: 'Liam', initials: 'LI' },
+	Noah: { name: 'Noah', initials: 'NO' }
+};
+
+export function profileFor(name: string): Player {
+	return playerProfiles[name] ?? { name, initials: name.slice(0, 2).toUpperCase() };
+}
 
 export const liveTournaments: Tournament[] = [
 	{
@@ -90,4 +106,3 @@ export const globalStandings = [
 	{ player: 'Milo', tournaments: 15, winRate: '61%', points: 7720 },
 	{ player: 'Liam', tournaments: 9, winRate: '64%', points: 6110 }
 ];
-import type { Pathname } from '$app/types';

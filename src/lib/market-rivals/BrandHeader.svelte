@@ -6,9 +6,15 @@
 		mode?: 'landing' | 'app' | 'minimal';
 		actionLabel?: string;
 		actionHref?: Pathname;
+		onConnect?: () => void;
 	};
 
-	let { mode = 'app', actionLabel = 'Close', actionHref = '/dashboard' }: Props = $props();
+	let {
+		mode = 'app',
+		actionLabel = 'Close',
+		actionHref = '/dashboard',
+		onConnect
+	}: Props = $props();
 </script>
 
 <header class="wrap topbar">
@@ -21,7 +27,11 @@
 		<nav>
 			<a href={resolve('/#how')}>How it works</a>
 			<a href={resolve('/#why')}>Why compete</a>
-			<a class="btn primary" href={resolve('/dashboard')}>Connect wallet</a>
+			{#if onConnect}
+				<button class="btn primary" type="button" onclick={onConnect}>Connect wallet</button>
+			{:else}
+				<a class="btn primary" href={resolve('/dashboard')}>Connect wallet</a>
+			{/if}
 		</nav>
 	{:else if mode === 'minimal'}
 		<a class="btn" href={resolve(actionHref)}>{actionLabel}</a>

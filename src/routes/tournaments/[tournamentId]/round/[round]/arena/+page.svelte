@@ -2,6 +2,7 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import BrandHeader from '$lib/market-rivals/BrandHeader.svelte';
+	import Countdown from '$lib/market-rivals/Countdown.svelte';
 	import PlayerList from '$lib/market-rivals/PlayerList.svelte';
 	import { roundPlayers } from '$lib/market-rivals/data';
 
@@ -24,7 +25,7 @@
 		</div>
 		<div class="market-line" style="margin-top: 34px">
 			<div class="price">$66,842.17</div>
-			<div class="timer">00:27</div>
+			<Countdown initialSeconds={27} />
 		</div>
 		<h1 class="question">Will BTC close at or above its opening price?</h1>
 

@@ -1,6 +1,8 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import BrandHeader from '$lib/market-rivals/BrandHeader.svelte';
+	import PlayerName from '$lib/market-rivals/PlayerName.svelte';
+	import { profileFor } from '$lib/market-rivals/data';
 
 	const standings = [
 		{ player: 'Ava', rounds: '8 / 10', winRate: '80%', points: 810 },
@@ -39,9 +41,9 @@
 				<tbody>
 					{#each standings as standing (standing.player)}
 						<tr
-							><td>{standing.player}</td><td>{standing.rounds}</td><td>{standing.winRate}</td><td
-								><strong>{standing.points}</strong></td
-							></tr
+							><td><PlayerName profile={profileFor(standing.player)} /></td><td
+								>{standing.rounds}</td
+							><td>{standing.winRate}</td><td><strong>{standing.points}</strong></td></tr
 						>
 					{/each}
 				</tbody>

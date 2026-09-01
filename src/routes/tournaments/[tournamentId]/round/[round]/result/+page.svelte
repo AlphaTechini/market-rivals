@@ -1,7 +1,8 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import BrandHeader from '$lib/market-rivals/BrandHeader.svelte';
-	import { roundStandings } from '$lib/market-rivals/data';
+	import PlayerName from '$lib/market-rivals/PlayerName.svelte';
+	import { profileFor, roundStandings } from '$lib/market-rivals/data';
 </script>
 
 <svelte:head><title>Round Result | Market Rivals</title></svelte:head>
@@ -27,9 +28,10 @@
 				<tbody>
 					{#each roundStandings as standing (standing.player)}
 						<tr
-							><td class="rank">#{standing.rank}</td><td>{standing.player}</td><td
-								>{standing.pick}</td
-							><td class="positive">{standing.round}</td><td><strong>{standing.total}</strong></td
+							><td class="rank">#{standing.rank}</td><td
+								><PlayerName profile={profileFor(standing.player)} /></td
+							><td>{standing.pick}</td><td class="positive">{standing.round}</td><td
+								><strong>{standing.total}</strong></td
 							></tr
 						>
 					{/each}
