@@ -1,8 +1,11 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
+	import { goto } from '$app/navigation';
 	import ArenaRing from '$lib/market-rivals/ArenaRing.svelte';
 	import BrandHeader from '$lib/market-rivals/BrandHeader.svelte';
 	import ProfileSetupModal from '$lib/market-rivals/ProfileSetupModal.svelte';
+	import { authenticateWithWallet } from '$lib/market-rivals/api';
+	import type { ProfileDraft } from '$lib/market-rivals/ProfileSetupModal.svelte';
 
 	let profileSetupOpen = $state(false);
 
@@ -10,9 +13,10 @@
 		profileSetupOpen = true;
 	}
 
-	function finishProfileSetup() {
+	async function finishProfileSetup(profile: ProfileDraft) {
+		await authenticateWithWallet(profile);
 		profileSetupOpen = false;
-		window.location.href = resolve('/dashboard');
+		await goto(resolve('/dashboard'));
 	}
 </script>
 

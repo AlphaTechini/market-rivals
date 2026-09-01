@@ -470,6 +470,11 @@ h3 {
 	box-shadow: 0 0 12px rgb(41 199 121 / 75%);
 }
 
+.dot.offline {
+	background: #788590;
+	box-shadow: none;
+}
+
 .tournament {
 	display: flex;
 	min-height: 240px;

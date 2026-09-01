@@ -17,6 +17,7 @@
 	let avatarFile = $state<File | null>(null);
 	let avatarUrl = $state('');
 	let error = $state('');
+	let connecting = $state(false);
 
 	function reset() {
 		step = 'profile';
@@ -24,6 +25,7 @@
 		avatarFile = null;
 		avatarUrl = '';
 		error = '';
+		connecting = false;
 	}
 
 	function close() {
@@ -57,10 +59,17 @@
 		step = 'wallet';
 	}
 
-	function connectWallet() {
+	async function connectWallet() {
 		if (!avatarFile || !displayName.trim()) return;
-		onComplete({ displayName: displayName.trim(), avatarFile, avatarUrl });
-		reset();
+		connecting = true;
+		error = '';
+		try {
+			await onComplete({ displayName: displayName.trim(), avatarFile, avatarUrl });
+			reset();
+		} catch (cause) {
+			error = cause instanceof Error ? cause.message : 'Wallet connection failed.';
+			connecting = false;
+		}
 	}
 
 	function handleBackdropClick(event: MouseEvent) {
@@ -118,9 +127,15 @@
 						Connect your wallet to sign DreamDEX testnet positions. Your private key never leaves
 						your wallet.
 					</p>
-					<button class="btn primary full" type="button" onclick={connectWallet}
-						>Connect wallet</button
+					{#if error}<p class="form-error">{error}</p>{/if}
+					<button
+						class="btn primary full"
+						type="button"
+						disabled={connecting}
+						onclick={connectWallet}
 					>
+						{connecting ? 'Connecting...' : 'Connect wallet'}
+					</button>
 					<button class="btn ghost full" type="button" onclick={() => (step = 'profile')}
 						>Back to profile</button
 					>

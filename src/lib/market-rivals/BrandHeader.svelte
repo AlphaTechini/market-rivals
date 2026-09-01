@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import type { Pathname } from '$app/types';
+	import PresenceStatus from './PresenceStatus.svelte';
 
 	type Props = {
 		mode?: 'landing' | 'app' | 'minimal';
@@ -37,6 +38,7 @@
 		<a class="btn" href={resolve(actionHref)}>{actionLabel}</a>
 	{:else}
 		<div class="actions">
+			<PresenceStatus />
 			<span class="pill"><i class="dot"></i> Somnia Testnet</span>
 			<button class="btn" type="button">0x71...9C2</button>
 		</div>
