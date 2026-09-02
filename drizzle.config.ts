@@ -4,7 +4,6 @@ const databaseUrl = process.env.DATABASE_URL;
 
 export default defineConfig({
 	schema: './src/lib/server/db/schema.ts',
-	out: './supabase/migrations',
 	dialect: 'postgresql',
 	...(databaseUrl ? { dbCredentials: { url: databaseUrl } } : {}),
 	verbose: true,

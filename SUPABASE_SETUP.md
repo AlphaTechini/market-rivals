@@ -39,17 +39,17 @@ The environment schema is maintained in [.env.example](./.env.example). Supabase
 
 ## 3. Deploy The Database Migration
 
-The repository uses `supabase/migrations` as the single migration source. The Supabase GitHub integration can apply the SQL in that directory when the production branch is configured for database deployment. No local database credentials are required for that GitHub deployment path.
+The repository uses Drizzle's default `drizzle` directory. The first migration is [drizzle/0000_jittery_the_twelve.sql](./drizzle/0000_jittery_the_twelve.sql). It creates profiles, wallet challenges, sessions, arenas, participants, rounds, picks, and achievements.
 
-The first migration is [supabase/migrations/20260902000000_market_rivals.sql](./supabase/migrations/20260902000000_market_rivals.sql). It creates profiles, wallet challenges, sessions, arenas, participants, rounds, picks, and achievements.
+Supabase's native GitHub migration integration does not automatically execute Drizzle's default directory. If the connected Supabase project is configured to run only `supabase/migrations`, use a CI workflow or a manually configured deployment step to run Drizzle migrations. No local database credentials are needed for a GitHub-hosted workflow, but its `DATABASE_URL` must be stored as a GitHub secret.
 
-If applying migrations locally or manually through Drizzle instead, set `DATABASE_URL` to the Supabase Session Pooler URL first and run:
+For local application of the migration, set `DATABASE_URL` to the Supabase Session Pooler URL first and run:
 
 ```text
 pnpm db:migrate
 ```
 
-Without `DATABASE_URL`, `pnpm db:generate` can still generate future SQL files, but commands that connect to PostgreSQL will fail until credentials are configured.
+Without `DATABASE_URL`, `pnpm db:generate` can generate future SQL files, but commands that connect to PostgreSQL will fail until credentials are configured.
 
 ## 4. Configure Vercel
 
