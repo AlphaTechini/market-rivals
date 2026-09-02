@@ -37,15 +37,19 @@ Copy `.env.example` to a local `.env` and replace only the placeholders. Never c
 
 The environment schema is maintained in [.env.example](./.env.example). Supabase API keys are documented in [Understanding API keys](https://supabase.com/docs/guides/api/api-keys). Connection strings are documented in [Connecting to Postgres](https://supabase.com/docs/guides/database/connecting-to-postgres).
 
-## 3. Run The Database Migration
+## 3. Deploy The Database Migration
 
-After `DATABASE_URL` points to the Supabase Session Pooler:
+The repository uses `supabase/migrations` as the single migration source. The Supabase GitHub integration can apply the SQL in that directory when the production branch is configured for database deployment. No local database credentials are required for that GitHub deployment path.
+
+The first migration is [supabase/migrations/20260902000000_market_rivals.sql](./supabase/migrations/20260902000000_market_rivals.sql). It creates profiles, wallet challenges, sessions, arenas, participants, rounds, picks, and achievements.
+
+If applying migrations locally or manually through Drizzle instead, set `DATABASE_URL` to the Supabase Session Pooler URL first and run:
 
 ```text
 pnpm db:migrate
 ```
 
-The migration creates profiles, wallet challenges, sessions, arenas, participants, rounds, picks, and achievements. The generated SQL is in [drizzle/0000_jittery_the_twelve.sql](./drizzle/0000_jittery_the_twelve.sql).
+Without `DATABASE_URL`, `pnpm db:generate` can still generate future SQL files, but commands that connect to PostgreSQL will fail until credentials are configured.
 
 ## 4. Configure Vercel
 
