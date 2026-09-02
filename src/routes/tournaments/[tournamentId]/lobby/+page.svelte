@@ -1,6 +1,7 @@
 <script lang="ts">
 	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
+	import type { Pathname } from '$app/types';
 	import { onMount } from 'svelte';
 	import BrandHeader from '$lib/market-rivals/BrandHeader.svelte';
 	import Countdown from '$lib/market-rivals/Countdown.svelte';
@@ -106,8 +107,13 @@
 				onclick={joinCurrentArena}
 				>{joined ? 'Joined arena' : joining ? 'Joining...' : 'Join arena'}</button
 			>
-			<a class="btn primary" href={resolve('/tournaments/alpha-weekend/round/1/arena')}
-				>Start demo tournament</a
+			<a
+				class="btn primary"
+				href={resolve(
+					tournamentId && isUuid(tournamentId)
+						? (`/tournaments/${tournamentId}/round/1/arena` as Pathname)
+						: '/tournaments/alpha-weekend/round/1/arena'
+				)}>Start demo tournament</a
 			>
 			<a class="btn" href={resolve('/tournaments/alpha-weekend/created')}>Share invite</a>
 		</div>

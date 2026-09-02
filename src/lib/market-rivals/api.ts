@@ -95,6 +95,26 @@ export function joinArena(
 	});
 }
 
+export function submitArenaPick(input: {
+	arenaId: string;
+	roundNumber: number;
+	marketId: string;
+	marketSymbol: string;
+	direction: 'UP' | 'DOWN';
+	orderTransactionHash: string;
+	filledQuantity: string;
+	averageFillPrice: string | null;
+}): Promise<{ pickId: string; status: string }> {
+	return request<{ pickId: string; status: string }>(
+		`/api/arenas/${input.arenaId}/rounds/${input.roundNumber}/pick`,
+		{
+			method: 'POST',
+			headers: { 'content-type': 'application/json' },
+			body: JSON.stringify(input)
+		}
+	);
+}
+
 export async function createArena(input: {
 	name: string;
 	asset: 'BTC' | 'ETH';

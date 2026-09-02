@@ -732,6 +732,11 @@ img.profile-avatar {
 	transition: 0.2s;
 }
 
+.choice button:disabled {
+	opacity: 0.45;
+	cursor: not-allowed;
+}
+
 .choice button:hover,
 .choice button.selected {
 	transform: translateY(-2px);

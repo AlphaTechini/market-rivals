@@ -14,11 +14,14 @@ This module is the application boundary for DreamDEX Event Contracts. It uses th
 - [config.ts](./config.ts) creates an unauthenticated Shannon SDK exchange.
 - [markets.ts](./markets.ts) discovers tradable binary markets and reads their order books.
 - [wallet.ts](./wallet.ts) binds and unbinds a connected wallet client without placing orders.
+- [trading.ts](./trading.ts) loads a live binary market and submits Market IOC predictions through the connected browser wallet.
 
 To find DreamDEX client configuration visit [config.ts](./config.ts).
 
 To find live market discovery and order-book logic visit [markets.ts](./markets.ts).
 
 To find the wallet connection boundary visit [wallet.ts](./wallet.ts).
+
+To find live market reads and order submission visit [trading.ts](./trading.ts).
 
 The DreamDEX SDK connection can be found in [config.ts](./config.ts).

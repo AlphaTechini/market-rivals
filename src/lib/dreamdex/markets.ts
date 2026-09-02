@@ -10,7 +10,7 @@ export type TradableBinaryMarket = {
 	onchain: MarketOnchain;
 };
 
-type DiscoverMarketsOptions = {
+export type DiscoverMarketsOptions = {
 	asset?: 'BTC' | 'ETH';
 	limit?: number;
 };
