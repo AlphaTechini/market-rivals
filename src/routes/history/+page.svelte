@@ -1,7 +1,23 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
+	import { onMount } from 'svelte';
 	import AppTabs from '$lib/market-rivals/AppTabs.svelte';
 	import BrandHeader from '$lib/market-rivals/BrandHeader.svelte';
+	import { fetchPastArenas, type LiveArena } from '$lib/market-rivals/api';
+
+	let pastArenas = $state<LiveArena[]>([]);
+	let loading = $state(true);
+	let error = $state('');
+
+	onMount(async () => {
+		try {
+			pastArenas = await fetchPastArenas();
+		} catch (cause) {
+			error = cause instanceof Error ? cause.message : 'Past tournaments could not be loaded.';
+		} finally {
+			loading = false;
+		}
+	});
 </script>
 
 <svelte:head><title>Past Tournaments | Market Rivals</title></svelte:head>
@@ -19,39 +35,19 @@
 		<input class="search" type="search" placeholder="Search past tournaments" />
 	</section>
 
+	{#if loading}<p class="fine">Loading past tournaments...</p>{/if}
+	{#if error}<p class="form-error">{error}</p>{/if}
 	<section class="grid" aria-label="Past tournaments">
-		<article class="card tournament">
-			<div class="meta"><span class="pill">ENDED AUG 29</span><span>BTC</span></div>
-			<div class="asset">Friday Night Calls</div>
-			<p>Won by Ava · 10 rounds · created by Alpha</p>
-			<div class="bottom">
-				<span class="fine" style="margin: 0">24 players</span><a
-					class="btn"
-					href={resolve('/history/friday-night-calls')}>View summary -></a
-				>
-			</div>
-		</article>
-		<article class="card tournament">
-			<div class="meta"><span class="pill">ENDED AUG 26</span><span>ETH</span></div>
-			<div class="asset">ETH Night Shift</div>
-			<p>Won by Zoe · 8 rounds · created by Milo</p>
-			<div class="bottom">
-				<span class="fine" style="margin: 0">12 players</span><a
-					class="btn"
-					href={resolve('/history/eth-night-shift')}>View summary -></a
-				>
-			</div>
-		</article>
-		<article class="card tournament">
-			<div class="meta"><span class="pill">ENDED AUG 22</span><span>BTC</span></div>
-			<div class="asset">First Light Cup</div>
-			<p>Won by Alpha · 20 rounds · created by Noah</p>
-			<div class="bottom">
-				<span class="fine" style="margin: 0">32 players</span><a
-					class="btn"
-					href={resolve('/history/first-light-cup')}>View summary -></a
-				>
-			</div>
-		</article>
+		{#each pastArenas as arena (arena.id)}
+			<article class="card tournament">
+				<div class="meta"><span class="pill">COMPLETED</span><span>{arena.asset}</span></div>
+				<div class="asset">{arena.name}</div>
+				<p>{arena.roundCount} rounds · completed {new Date(arena.startAt).toLocaleDateString()}</p>
+				<div class="bottom">
+					<span class="fine" style="margin: 0">{arena.playerCount} players</span>
+					<a class="btn" href={resolve(`/history/${arena.id}`)}>View summary -></a>
+				</div>
+			</article>
+		{/each}
 	</section>
 </main>

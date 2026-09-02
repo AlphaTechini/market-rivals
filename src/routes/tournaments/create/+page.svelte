@@ -2,6 +2,8 @@
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
 	import BrandHeader from '$lib/market-rivals/BrandHeader.svelte';
+	import { createArena } from '$lib/market-rivals/api';
+	import type { Pathname } from '$app/types';
 
 	let tournamentName = $state("Alpha's Weekend Arena");
 	let asset = $state('BTC / USD');
@@ -13,8 +15,9 @@
 	let entry = $state(1);
 	let description = $state('Ten rounds. One leaderboard. Bring your best BTC calls.');
 	let validationError = $state('');
+	let submitting = $state(false);
 
-	function createTournament(event: SubmitEvent) {
+	async function createTournament(event: SubmitEvent) {
 		event.preventDefault();
 		if (!Number.isInteger(rounds) || rounds < 1) {
 			validationError = 'Number of rounds must be a whole number greater than zero.';
@@ -33,7 +36,25 @@
 			return;
 		}
 		validationError = '';
-		void goto(resolve('/tournaments/alpha-weekend/created'));
+		submitting = true;
+		try {
+			const arena = await createArena({
+				name: tournamentName.trim(),
+				asset: asset === 'BTC / USD' ? 'BTC' : 'ETH',
+				accessType: visibility.startsWith('Private') ? 'PRIVATE' : 'PUBLIC',
+				roundCount: rounds,
+				maximumParticipants: players,
+				roundIntervalMinutes: roundInterval,
+				entryFee: entry,
+				startAt: new Date(starts).toISOString(),
+				description: description.trim()
+			});
+			await goto(resolve(`/tournaments/${arena.id}/created` as Pathname));
+		} catch (cause) {
+			validationError = cause instanceof Error ? cause.message : 'Tournament could not be created.';
+		} finally {
+			submitting = false;
+		}
 	}
 </script>
 
@@ -121,7 +142,9 @@
 				positions, not an off-chain price guess.
 			</p>
 			{#if validationError}<p class="form-error">{validationError}</p>{/if}
-			<button class="btn primary full" type="submit">Create tournament</button>
+			<button class="btn primary full" type="submit" disabled={submitting}
+				>{submitting ? 'Creating...' : 'Create tournament'}</button
+			>
 		</form>
 	</section>
 </main>

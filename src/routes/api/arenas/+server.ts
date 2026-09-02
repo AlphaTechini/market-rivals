@@ -14,12 +14,20 @@ function isAccessType(value: string | null): value is 'PRIVATE' | 'PUBLIC' {
 	return value === 'PRIVATE' || value === 'PUBLIC';
 }
 
+function isListStatus(value: string | null): value is 'JOINING' | 'LIVE' | 'COMPLETED' {
+	return value === 'JOINING' || value === 'LIVE' || value === 'COMPLETED';
+}
+
 export async function GET({ url }) {
+	const statusParam = url.searchParams.get('status') ?? 'JOINING';
+	const status = isListStatus(statusParam) ? statusParam : null;
 	const assetParam = url.searchParams.get('asset');
 	const asset = assetParam && isAsset(assetParam) ? assetParam : null;
+	if (!status)
+		return json({ error: 'Status must be JOINING, LIVE, or COMPLETED.' }, { status: 400 });
 	if (assetParam && !asset) return json({ error: 'Asset must be BTC or ETH.' }, { status: 400 });
 
-	const filters = [eq(arenas.status, 'JOINING'), eq(arenas.accessType, 'PUBLIC')];
+	const filters = [eq(arenas.status, status), eq(arenas.accessType, 'PUBLIC')];
 	if (asset) filters.push(eq(arenas.asset, asset));
 
 	const rows = await getDb()

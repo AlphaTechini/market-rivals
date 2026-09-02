@@ -44,6 +44,8 @@ export type LiveArena = {
 	playerCount: number;
 };
 
+type ArenaListStatus = 'JOINING' | 'LIVE' | 'COMPLETED';
+
 async function request<T>(input: RequestInfo | URL, init?: RequestInit): Promise<T> {
 	const response = await fetch(input, init);
 	const body: unknown = await response.json().catch(() => null);
@@ -65,9 +67,32 @@ export function fetchArenaSummary(arenaId: string): Promise<ArenaSummary> {
 	return request<ArenaSummary>(`/api/arenas/${arenaId}/summary`);
 }
 
+function fetchArenas(status: ArenaListStatus, asset?: 'BTC' | 'ETH'): Promise<LiveArena[]> {
+	const params = new URLSearchParams({ status });
+	if (asset) params.set('asset', asset);
+	return request<LiveArena[]>(`/api/arenas?${params.toString()}`);
+}
+
 export function fetchLiveArenas(asset?: 'BTC' | 'ETH'): Promise<LiveArena[]> {
-	const query = asset ? `?asset=${asset}` : '';
-	return request<LiveArena[]>(`/api/arenas${query}`);
+	return Promise.all([fetchArenas('JOINING', asset), fetchArenas('LIVE', asset)]).then((arenas) =>
+		arenas.flat()
+	);
+}
+
+export function fetchPastArenas(asset?: 'BTC' | 'ETH'): Promise<LiveArena[]> {
+	return fetchArenas('COMPLETED', asset);
+}
+
+export function joinArena(
+	arenaId: string,
+	inviteCode?: string
+): Promise<{ participantId: string; arenaId: string }> {
+	const body = inviteCode ? JSON.stringify({ inviteCode }) : undefined;
+	return request<{ participantId: string; arenaId: string }>(`/api/arenas/${arenaId}/join`, {
+		method: 'POST',
+		headers: { 'content-type': 'application/json' },
+		body
+	});
 }
 
 export async function createArena(input: {

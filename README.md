@@ -1,42 +1,34 @@
-# sv
+# Market Rivals
 
-Everything you need to build a Svelte project, powered by [`sv`](https://github.com/sveltejs/cli).
-
-## Creating a project
-
-If you're seeing this, you've probably already done this step. Congrats!
-
-```sh
-# create a new project
-npx sv create my-app
-```
-
-To recreate this project with the same configuration:
-
-```sh
-# recreate this project
-pnpm dlx sv@0.17.0 create --template minimal --types ts --add prettier eslint tailwindcss="plugins:typography,forms" drizzle="database:postgresql+postgresql:postgres.js+docker:no" --install pnpm Frontend
-```
+Market Rivals is a SvelteKit application for competitive, multi-round BTC and ETH tournaments over DreamDEX Event Contracts.
 
 ## Developing
 
-Once you've created a project and installed dependencies with `npm install` (or `pnpm install` or `yarn`), start a development server:
+Install dependencies with `pnpm install`, then start the development server:
 
 ```sh
-npm run dev
+pnpm dev
 
-# or start the server and open the app in a new browser tab
-npm run dev -- --open
+# start the server and open the app in a new browser tab
+pnpm dev -- --open
 ```
 
 ## Building
 
-To create a production version of your app:
+Create a production build with:
 
 ```sh
-npm run build
+pnpm build
 ```
 
-You can preview the production build with `npm run preview`.
+You can preview the production build with `pnpm preview`.
 
-> To deploy your app, you may need to install an [adapter](https://svelte.dev/docs/kit/adapters) for your target environment.
+The app uses the Vercel adapter in [svelte.config.js](./svelte.config.js).
+
+## Configuration
+
+Follow [SUPABASE_SETUP.md](./SUPABASE_SETUP.md) for Session Pooler, public avatar storage, Presence, and Vercel environment configuration.
+
+To find DreamDEX SDK configuration visit [src/lib/dreamdex/config.ts](file:///C:/Hackathons/DreamDEX/frontend/src/lib/dreamdex/config.ts).
+
+To find API route logic visit [src/routes/api](file:///C:/Hackathons/DreamDEX/frontend/src/routes/api).
