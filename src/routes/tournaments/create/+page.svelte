@@ -3,32 +3,77 @@
 	import { resolve } from '$app/paths';
 	import BrandHeader from '$lib/market-rivals/BrandHeader.svelte';
 	import { createArena } from '$lib/market-rivals/api';
+	import { defaultStartTime } from '$lib/market-rivals/dates';
 	import type { Pathname } from '$app/types';
 
-	let tournamentName = $state("Alpha's Weekend Arena");
-	let asset = $state('BTC / USD');
+	type AssetChoice = 'BTC' | 'ETH' | 'MIX';
+
+	const windowMinutes = 15;
+	const phaseMinutes = 6;
+	const phaseGapMinutes = 1;
+
+	let tournamentName = $state('Friday Market Match');
+	let asset = $state<AssetChoice>('MIX');
 	let visibility = $state('Public - listed for everyone');
-	let roundInterval = $state(15);
-	let rounds = $state(10);
+	let rounds = $state(2);
 	let players = $state(16);
-	let starts = $state('2026-09-02T18:00');
+	let starts = $state(defaultStartTime());
 	let entry = $state(1);
-	let description = $state('Ten rounds. One leaderboard. Bring your best BTC calls.');
+	let description = $state('Two live DreamDEX windows. One leaderboard. Bring your best calls.');
 	let validationError = $state('');
 	let submitting = $state(false);
 
+	function phaseStart(index: number, from = new Date(starts)): Date {
+		if (asset !== 'MIX') {
+			return new Date(from.getTime() + index * windowMinutes * 60 * 1000);
+		}
+		const wave = Math.floor(index / 2);
+		const offset = index % 2 === 0 ? 0 : phaseMinutes + phaseGapMinutes;
+		return new Date(from.getTime() + (wave * windowMinutes + offset) * 60 * 1000);
+	}
+
+	function roundAssetLabel(index: number): string {
+		if (asset === 'MIX') return index % 2 === 0 ? 'BTC' : 'ETH';
+		return asset;
+	}
+
+	let schedulePreview = $derived.by(() => {
+		try {
+			return Array.from({ length: rounds }, (_, index) => {
+				const opens = phaseStart(index);
+				const locks = new Date(opens.getTime() + phaseMinutes * 60 * 1000);
+				return {
+					round: index + 1,
+					asset: roundAssetLabel(index),
+					opens: opens.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' }),
+					locks: locks.toLocaleTimeString([], { hour: '2-digit', minute: '2-digit' })
+				};
+			});
+		} catch {
+			return [];
+		}
+	});
+
+	let sessionEnd = $derived.by(() => {
+		if (rounds === 0) return '';
+		try {
+			const last = phaseStart(rounds - 1);
+			const end = new Date(last.getTime() + 15 * 60 * 1000);
+			const minutes = Math.round((end.getTime() - new Date(starts).getTime()) / 60000);
+			return `~${minutes} min session`;
+		} catch {
+			return '';
+		}
+	});
+
 	async function createTournament(event: SubmitEvent) {
 		event.preventDefault();
-		if (!Number.isInteger(rounds) || rounds < 1) {
-			validationError = 'Number of rounds must be a whole number greater than zero.';
+		if (!Number.isInteger(rounds) || rounds < 1 || rounds > 4) {
+			validationError = 'Rounds must be a whole number between 1 and 4.';
 			return;
 		}
 		if (!Number.isInteger(players) || players < 2 || players > 100) {
 			validationError = 'Maximum players must be a whole number between 2 and 100.';
-			return;
-		}
-		if (!Number.isInteger(roundInterval) || roundInterval < 3 || roundInterval > 20) {
-			validationError = 'Round interval must be a whole number between 3 and 20 minutes.';
 			return;
 		}
 		if (entry < 1) {
@@ -40,11 +85,11 @@
 		try {
 			const arena = await createArena({
 				name: tournamentName.trim(),
-				asset: asset === 'BTC / USD' ? 'BTC' : 'ETH',
+				asset,
 				accessType: visibility.startsWith('Private') ? 'PRIVATE' : 'PUBLIC',
 				roundCount: rounds,
 				maximumParticipants: players,
-				roundIntervalMinutes: roundInterval,
+				roundIntervalMinutes: windowMinutes,
 				entryFee: entry,
 				startAt: new Date(starts).toISOString(),
 				description: description.trim()
@@ -65,10 +110,11 @@
 <main class="wrap">
 	<section class="form">
 		<div class="center">
-			<div class="eyebrow">Host an arena</div>
+			<div class="eyebrow">Host a match night</div>
 			<h1>Create your tournament</h1>
 			<p class="sub" style="margin-inline: auto">
-				Set the format now. DreamDEX supplies the underlying market windows and settlement.
+				Rounds ride real DreamDEX 15-minute windows. Mixed matches run BTC and ETH in the same
+				window, so a two-round match settles in about 15 minutes.
 			</p>
 		</div>
 
@@ -79,10 +125,11 @@
 			</div>
 			<div class="two">
 				<div class="field">
-					<label for="asset">Asset</label>
+					<label for="asset">Asset rotation</label>
 					<select id="asset" bind:value={asset}>
-						<option>BTC / USD</option>
-						<option>ETH / USD</option>
+						<option value="MIX">Mixed - BTC and ETH alternate</option>
+						<option value="BTC">BTC only</option>
+						<option value="ETH">ETH only</option>
 					</select>
 				</div>
 				<div class="field">
@@ -95,8 +142,8 @@
 			</div>
 			<div class="two">
 				<div class="field">
-					<label for="rounds">Number of rounds</label>
-					<input id="rounds" type="number" min="1" step="1" bind:value={rounds} required />
+					<label for="rounds">Rounds (1-4)</label>
+					<input id="rounds" type="number" min="1" max="4" step="1" bind:value={rounds} required />
 				</div>
 				<div class="field">
 					<label for="players">Maximum players</label>
@@ -113,33 +160,49 @@
 			</div>
 			<div class="two">
 				<div class="field">
-					<label for="interval">Minutes between rounds</label>
-					<input
-						id="interval"
-						type="number"
-						min="3"
-						max="20"
-						step="1"
-						bind:value={roundInterval}
-						required
-					/>
-				</div>
-				<div class="field">
 					<label for="starts">Starts</label>
 					<input id="starts" type="datetime-local" bind:value={starts} required />
 				</div>
-			</div>
-			<div class="field">
-				<label for="entry">Entry fee per round (USDso)</label>
-				<input id="entry" type="number" min="1" step="0.01" bind:value={entry} required />
+				<div class="field">
+					<label for="entry">Entry fee per round (USDso)</label>
+					<input id="entry" type="number" min="1" step="0.01" bind:value={entry} required />
+				</div>
 			</div>
 			<div class="field">
 				<label for="description">Short description</label>
 				<textarea id="description" rows="3" bind:value={description}></textarea>
 			</div>
+
+			<div class="card" style="margin-bottom: 16px">
+				<div class="meta">
+					<strong>Schedule</strong>
+					<span class="pill">{sessionEnd || 'pick a start time'}</span>
+				</div>
+				<div class="table-wrap" style="margin-top: 12px">
+					<table class="table">
+						<thead
+							><tr><th>Round</th><th>Asset</th><th>Voting opens</th><th>Vote phase ends</th></tr
+							></thead
+						>
+						<tbody>
+							{#each schedulePreview as row (row.round)}
+								<tr
+									><td>{row.round}</td><td>{row.asset}</td><td>{row.opens}</td><td>{row.locks}</td
+									></tr
+								>
+							{/each}
+						</tbody>
+					</table>
+				</div>
+				<p class="fine" style="margin-top: 10px">
+					Picks stay open until 1 minute before the DreamDEX window closes; the phases above are the
+					guided rhythm for everyone who arrives on time.
+				</p>
+			</div>
+
 			<p class="fine">
-				Every player uses the same 10-contract stake per round. Scoring is based on settled DreamDEX
-				positions, not an off-chain price guess.
+				Every player uses the same 10-contract stake per round. Scoring follows the settled return
+				of your verified DreamDEX positions, not an off-chain price guess.
 			</p>
 			{#if validationError}<p class="form-error">{validationError}</p>{/if}
 			<button class="btn primary full" type="submit" disabled={submitting}

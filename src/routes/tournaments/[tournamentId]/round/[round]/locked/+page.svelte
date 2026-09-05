@@ -1,7 +1,64 @@
 <script lang="ts">
+	import { page } from '$app/state';
+	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
+	import type { Pathname } from '$app/types';
+	import { onDestroy, onMount } from 'svelte';
 	import BrandHeader from '$lib/market-rivals/BrandHeader.svelte';
 	import Countdown from '$lib/market-rivals/Countdown.svelte';
+	import {
+		explorerTransactionUrl,
+		fetchRoundDetail,
+		isUuid,
+		type RoundDetail
+	} from '$lib/market-rivals/api';
+
+	let roundDetail = $state<RoundDetail | null>(null);
+	let loading = $state(true);
+	let error = $state('');
+	let arenaId = $derived(page.params.tournamentId);
+	let roundNumber = $derived(Number(page.params.round ?? '1'));
+	let settlementAt = $derived(
+		roundDetail?.round.marketExpiresAt ??
+			(roundDetail
+				? new Date(new Date(roundDetail.round.locksAt).getTime() + 9 * 60 * 1000).toISOString()
+				: null)
+	);
+
+	const pollMs = 15000;
+	let pollTimer: number | undefined;
+
+	onMount(async () => {
+		const id = arenaId;
+		if (!id || !isUuid(id)) {
+			error = 'Open a real tournament from the live dashboard.';
+			loading = false;
+			return;
+		}
+
+		async function checkRound() {
+			if (!arenaId || !isUuid(arenaId)) return;
+			try {
+				const detail = await fetchRoundDetail(arenaId, roundNumber);
+				roundDetail = detail;
+				if (detail.round.status === 'SETTLED' || detail.round.status === 'VOIDED') {
+					if (pollTimer) window.clearInterval(pollTimer);
+					await goto(resolve(`/tournaments/${arenaId!}/round/${roundNumber}/result` as Pathname));
+				}
+			} catch (cause) {
+				error = cause instanceof Error ? cause.message : 'Round state could not be loaded.';
+			} finally {
+				loading = false;
+			}
+		}
+
+		await checkRound();
+		pollTimer = window.setInterval(() => void checkRound(), pollMs);
+	});
+
+	onDestroy(() => {
+		if (pollTimer) window.clearInterval(pollTimer);
+	});
 </script>
 
 <svelte:head><title>Position Locked | Market Rivals</title></svelte:head>
@@ -10,29 +67,75 @@
 
 <main class="wrap">
 	<section class="narrow">
-		<div class="eyebrow">Position confirmed on DreamDEX</div>
+		<div class="eyebrow">
+			{roundDetail?.myPick ? 'Position confirmed on DreamDEX' : 'Round locked'} · Round {roundNumber}
+			· {roundDetail?.round.asset ?? ''}
+		</div>
 		<h1>Waiting for settlement</h1>
-		<p class="sub">Waiting for this BTC market window to settle.</p>
+		<p class="sub">
+			{roundDetail?.round.marketSymbol ?? 'This market window'} has locked. DreamDEX settles the outcome
+			on-chain.
+		</p>
 		<div class="lobby-ring">
 			<div class="arena-ring">
 				<div class="ring-copy">
-					<small>Market closes in</small><strong><Countdown initialSeconds={522} /></strong><small
-						>BTC / USD</small
-					>
+					<small>Window closes in</small>
+					<strong>
+						{#if settlementAt}<Countdown targetAt={settlementAt} />{:else}--:--{/if}
+					</strong>
+					<small>Somnia · DreamDEX</small>
 				</div>
 			</div>
 		</div>
-		<div class="notice">
-			<p>Your position is locked: <strong>UP · 1 contract · 1 USDso maximum risk</strong></p>
-		</div>
-		<div class="statgrid">
-			<div class="stat"><small>Opening price</small><strong>$66,801</strong></div>
-			<div class="stat"><small>Current price</small><strong>$66,842</strong></div>
-			<div class="stat"><small>Movement</small><strong class="positive">+0.06%</strong></div>
-		</div>
-		<p class="fine">Competitors' selections are revealed after trading closes.</p>
-		<a class="btn primary" href={resolve('/tournaments/alpha-weekend/round/1/result')}
-			>Simulate settlement</a
-		>
+
+		{#if roundDetail?.myPick}
+			<div class="notice">
+				<p>
+					Your locked position: <strong
+						>{roundDetail.myPick.selectedSide} · {roundDetail.myPick.filledQuantity} contracts</strong
+					>
+					{#if roundDetail.myPick.averageFillPrice}
+						· filled at {Number(roundDetail.myPick.averageFillPrice).toFixed(4)} USDso
+					{/if}
+					{#if roundDetail.myPick.changed}
+						· changed from your first pick
+					{/if}
+				</p>
+			</div>
+		{:else}
+			<div class="notice">
+				<p>No confirmed position this round. It will count as a missed round.</p>
+			</div>
+		{/if}
+
+		{#if roundDetail?.stage}
+			<div class="card" style="text-align: left">
+				<div class="meta"><strong>Match stage</strong></div>
+				<p style="margin-top: 10px">{roundDetail.stage.headline}</p>
+				<ul style="margin-top: 10px; padding-left: 18px">
+					{#each roundDetail.stage.lines as line (line.kind + line.text)}
+						<li>{line.text}</li>
+					{/each}
+				</ul>
+			</div>
+		{/if}
+
+		{#if roundDetail?.myPick?.orderTransactionHash}
+			<button
+				class="btn"
+				type="button"
+				onclick={() =>
+					window.open(
+						explorerTransactionUrl(roundDetail!.myPick!.orderTransactionHash!),
+						'_blank',
+						'noopener,noreferrer'
+					)}
+			>
+				View my transaction on Somnia explorer
+			</button>
+		{/if}
+		{#if loading}<p class="fine">Loading round state...</p>{/if}
+		{#if error}<p class="form-error">{error}</p>{/if}
+		<p class="fine">This page refreshes every {pollMs / 1000} seconds until DreamDEX settles.</p>
 	</section>
 </main>

@@ -7,16 +7,25 @@
 	import BrandHeader from '$lib/market-rivals/BrandHeader.svelte';
 	import Countdown from '$lib/market-rivals/Countdown.svelte';
 	import PlayerList from '$lib/market-rivals/PlayerList.svelte';
-	import { fetchArenaSummary, isUuid, submitArenaPick } from '$lib/market-rivals/api';
-	import { roundPlayers } from '$lib/market-rivals/data';
+	import {
+		fetchArenaSummary,
+		fetchRoundDetail,
+		isUuid,
+		submitArenaPick,
+		type RoundDetail
+	} from '$lib/market-rivals/api';
 	import {
 		prepareLiveBinaryTrade,
+		prepareRoundTrade,
 		placeMarketIocPrediction,
 		type LiveBinaryTradeContext
 	} from '$lib/dreamdex/trading';
 
 	let selectedSide: 'UP' | 'DOWN' | null = $state(null);
+	let confirmingSide: 'UP' | 'DOWN' | null = $state(null);
+	let changeMode = $state(false);
 	let trade = $state<LiveBinaryTradeContext | null>(null);
+	let roundDetail = $state<RoundDetail | null>(null);
 	let marketLoading = $state(true);
 	let submitting = $state(false);
 	let marketError = $state('');
@@ -24,6 +33,7 @@
 	let transactionHash = $state('');
 	let arenaId = $derived(page.params.tournamentId);
 	let roundNumber = $derived(Number(page.params.round ?? '1'));
+	let validArenaId = $derived(Boolean(arenaId && isUuid(arenaId)));
 
 	onMount(async () => {
 		try {
@@ -32,9 +42,25 @@
 				marketError = 'Open an arena created through the live dashboard before trading.';
 				return;
 			}
-			const summary = await fetchArenaSummary(id);
-			const asset = summary.arena.asset;
-			trade = await prepareLiveBinaryTrade(asset);
+
+			const [summary, round] = await Promise.all([
+				fetchArenaSummary(id),
+				fetchRoundDetail(id, roundNumber)
+			]);
+			roundDetail = round;
+
+			if (round.round.status === 'LOCKED') {
+				await goto(resolve(`/tournaments/${id}/round/${roundNumber}/locked` as Pathname));
+				return;
+			}
+			if (round.round.status === 'SETTLED' || round.round.status === 'VOIDED') {
+				await goto(resolve(`/tournaments/${id}/round/${roundNumber}/result` as Pathname));
+				return;
+			}
+
+			trade = round.round.dreamDexMarketId
+				? await prepareRoundTrade(round.round.dreamDexMarketId)
+				: await prepareLiveBinaryTrade(summary.arena.asset);
 		} catch (cause) {
 			marketError =
 				cause instanceof Error ? cause.message : 'Live DreamDEX market could not be loaded.';
@@ -47,8 +73,22 @@
 		if (trade) void trade.exchange.close();
 	});
 
+	async function refreshRound() {
+		if (!validArenaId) return;
+		try {
+			roundDetail = await fetchRoundDetail(arenaId!, roundNumber);
+		} catch {
+			// keep showing the previous round state
+		}
+	}
+
+	function requestConfirm(side: 'UP' | 'DOWN') {
+		selectedSide = side;
+		confirmingSide = side;
+	}
+
 	async function confirmPrediction() {
-		if (!selectedSide || !trade || !arenaId || !isUuid(arenaId)) {
+		if (!confirmingSide || !trade || !validArenaId) {
 			orderError = 'Open a real tournament from the live dashboard before submitting a prediction.';
 			return;
 		}
@@ -56,10 +96,10 @@
 		submitting = true;
 		orderError = '';
 		try {
-			const placed = await placeMarketIocPrediction(trade, selectedSide);
+			const placed = await placeMarketIocPrediction(trade, confirmingSide);
 			transactionHash = placed.transactionHash;
 			await submitArenaPick({
-				arenaId,
+				arenaId: arenaId!,
 				roundNumber,
 				marketId: placed.marketId,
 				marketSymbol: placed.marketSymbol,
@@ -68,16 +108,45 @@
 				filledQuantity: placed.filledQuantity,
 				averageFillPrice: placed.averageFillPrice
 			});
-			await goto(resolve(`/tournaments/${arenaId}/round/${roundNumber}/locked` as Pathname));
+			await refreshRound();
 		} catch (cause) {
 			orderError = cause instanceof Error ? cause.message : 'DreamDEX order submission failed.';
+			await refreshRound();
 		} finally {
 			submitting = false;
+			confirmingSide = null;
+			changeMode = false;
 		}
 	}
+
+	function projectedFor(side: 'UP' | 'DOWN'): string {
+		const price = side === 'UP' ? trade?.upPrice : trade?.downPrice;
+		if (price === null || price === undefined) return '-';
+		const win = (1 - price) * 100;
+		const lose = -price * 100;
+		return `${win >= 0 ? '+' : ''}${win.toFixed(0)} if right · ${lose.toFixed(0)} if wrong`;
+	}
+
+	let myPick = $derived(roundDetail?.myPick ?? null);
+	let votesClosed = $derived(
+		Boolean(roundDetail && Date.now() >= new Date(roundDetail.pickDeadline).getTime())
+	);
+	let picksOpen = $derived.by(() => {
+		if (!roundDetail || votesClosed) return false;
+		if (!myPick || myPick.status !== 'CONFIRMED') return true;
+		return changeMode && roundDetail.canChange;
+	});
+	let participants = $derived(
+		roundDetail?.standings.map((standing) => ({
+			name: standing.displayName,
+			initials: standing.displayName.slice(0, 2).toUpperCase(),
+			avatarUrl: standing.avatarUrl ?? undefined,
+			status: 'Choosing'
+		})) ?? []
+	);
 </script>
 
-<svelte:head><title>Round 1 | Market Rivals</title></svelte:head>
+<svelte:head><title>Round {roundNumber} | Market Rivals</title></svelte:head>
 
 <BrandHeader />
 
@@ -89,7 +158,13 @@
 			</div>
 			<span class="pill"
 				><i class:offline={marketLoading || !!marketError} class="dot"></i>
-				{marketLoading ? 'LOADING' : marketError ? 'UNAVAILABLE' : 'TRADING'} · Round {roundNumber}</span
+				{marketLoading
+					? 'LOADING'
+					: marketError
+						? 'UNAVAILABLE'
+						: votesClosed
+							? 'PICKS CLOSED'
+							: 'VOTING'} · Round {roundNumber} · {roundDetail?.round.asset ?? ''}</span
 			>
 		</div>
 		<div class="market-line" style="margin-top: 34px">
@@ -98,46 +173,91 @@
 					? `${trade.upPrice?.toFixed(4) ?? '-'} / ${trade.downPrice?.toFixed(4) ?? '-'}`
 					: 'Loading'}
 			</div>
-			<Countdown initialSeconds={27} />
+			{#if roundDetail}
+				<Countdown targetAt={roundDetail.pickDeadline} />
+			{:else}
+				<Countdown initialSeconds={30} />
+			{/if}
 		</div>
 		<h1 class="question">{trade?.question ?? 'Loading the live Up or Down market...'}</h1>
 
-		<div class="choice" aria-label="Choose your prediction">
-			<button
-				class:selected={selectedSide === 'UP'}
-				class="up"
-				type="button"
-				disabled={!trade || marketLoading}
-				aria-pressed={selectedSide === 'UP'}
-				onclick={() => (selectedSide = 'UP')}
-			>
-				<strong>^ UP</strong><span>{trade?.upPrice?.toFixed(4) ?? '-'} USDso</span>
-			</button>
-			<button
-				class:selected={selectedSide === 'DOWN'}
-				class="down"
-				type="button"
-				disabled={!trade || marketLoading}
-				aria-pressed={selectedSide === 'DOWN'}
-				onclick={() => (selectedSide = 'DOWN')}
-			>
-				<strong>v DOWN</strong><span>{trade?.downPrice?.toFixed(4) ?? '-'} USDso</span>
-			</button>
-		</div>
+		{#if myPick?.status === 'CONFIRMED'}
+			<div class="notice">
+				<p>
+					Your position: <strong>{myPick.selectedSide} · {myPick.filledQuantity} contracts</strong>
+					{#if myPick.averageFillPrice}
+						· filled at {Number(myPick.averageFillPrice).toFixed(4)} USDso
+					{/if}
+					{#if myPick.changed}
+						· changed from your first pick
+					{/if}
+				</p>
+				{#if roundDetail?.canChange && !changeMode}
+					<button class="btn" type="button" onclick={() => (changeMode = true)}>
+						Change pick (allowed until {roundDetail.changeDeadline
+							? new Date(roundDetail.changeDeadline).toLocaleTimeString()
+							: '-'})
+					</button>
+				{:else if !roundDetail?.canChange && !changeMode}
+					<p class="fine">The change window for your pick has closed.</p>
+				{/if}
+			</div>
+		{:else if votesClosed}
+			<div class="notice">
+				<p>Picks are closed; less than one minute remained before the DreamDEX window.</p>
+			</div>
+		{/if}
 
-		{#if selectedSide}
+		{#if picksOpen}
+			<div class="choice" aria-label="Choose your prediction">
+				<button
+					class:selected={selectedSide === 'UP'}
+					class="up"
+					type="button"
+					disabled={!trade || marketLoading}
+					aria-pressed={selectedSide === 'UP'}
+					onclick={() => requestConfirm('UP')}
+				>
+					<strong>^ UP</strong><span>{trade?.upPrice?.toFixed(4) ?? '-'} USDso</span>
+				</button>
+				<button
+					class:selected={selectedSide === 'DOWN'}
+					class="down"
+					type="button"
+					disabled={!trade || marketLoading}
+					aria-pressed={selectedSide === 'DOWN'}
+					onclick={() => requestConfirm('DOWN')}
+				>
+					<strong>v DOWN</strong><span>{trade?.downPrice?.toFixed(4) ?? '-'} USDso</span>
+				</button>
+			</div>
+		{/if}
+
+		{#if confirmingSide}
 			<div class="confirm">
 				<p>
-					You chose <strong>{selectedSide}</strong> · Position: {trade?.contractQuantity ?? 10} contracts
+					Confirm <strong>{confirmingSide}</strong> for {trade?.contractQuantity ?? 10} contracts?
+					{changeMode ? 'This replaces your current pick.' : ''}
 				</p>
-				<button
-					class="btn primary"
-					type="button"
-					disabled={submitting || marketLoading}
-					onclick={confirmPrediction}
-				>
-					{submitting ? 'Waiting for receipt...' : 'Sign Market IOC order'}
-				</button>
+				<p class="fine">{projectedFor(confirmingSide)} pts</p>
+				<div class="actions">
+					<button
+						class="btn primary"
+						type="button"
+						disabled={submitting || marketLoading}
+						onclick={confirmPrediction}
+					>
+						{submitting ? 'Waiting for receipt...' : 'Yes, sign Market IOC order'}
+					</button>
+					<button
+						class="btn ghost"
+						type="button"
+						disabled={submitting}
+						onclick={() => (confirmingSide = null)}
+					>
+						Cancel
+					</button>
+				</div>
 			</div>
 		{/if}
 
@@ -149,16 +269,23 @@
 			</p>{/if}
 		<p class="fine">
 			Prices and settlement are supplied by DreamDEX. The browser wallet signs the order; the server
-			stores the verified receipt and fill evidence.
+			stores the verified receipt and fill evidence. Your final pick before the cut is the one that
+			scores.
 		</p>
 	</section>
 
 	<aside class="side">
 		<h3>Round status</h3>
 		<div class="meta" style="margin-bottom: 14px">
-			<strong>3 / 6 picked</strong><span>Hidden picks</span>
+			<strong
+				>{roundDetail
+					? `${roundDetail.pickedCount} / ${roundDetail.participantCount} picked`
+					: 'Loading'}</strong
+			><span>Hidden picks</span>
 		</div>
-		<PlayerList players={roundPlayers} />
-		<p class="fine">Other directions stay hidden until trading closes.</p>
+		{#if participants.length}
+			<PlayerList players={participants} />
+		{/if}
+		<p class="fine">Other directions stay hidden until voting closes.</p>
 	</aside>
 </main>

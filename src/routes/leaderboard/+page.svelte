@@ -6,9 +6,19 @@
 	import { fetchLeaderboard, profileFromApi, type LeaderboardEntry } from '$lib/market-rivals/api';
 
 	let assetFilter = $state<'ALL' | 'BTC' | 'ETH'>('ALL');
+	let sortBy = $state<'profit' | 'correctness'>('profit');
 	let standings = $state<LeaderboardEntry[]>([]);
 	let loading = $state(true);
 	let error = $state('');
+
+	let sortedStandings = $derived.by(() => {
+		if (sortBy === 'correctness') {
+			return [...standings].sort(
+				(a, b) => b.correctRounds - a.correctRounds || b.totalScore - a.totalScore
+			);
+		}
+		return [...standings].sort((a, b) => b.totalScore - a.totalScore);
+	});
 
 	async function loadLeaderboard() {
 		loading = true;
@@ -40,33 +50,50 @@
 	</section>
 
 	<section class="filter-row">
-		<span class="fine" style="margin: 0">Ranked by settled points</span>
-		<label>
-			<span class="sr-only">Filter by asset</span>
-			<select
-				aria-label="Filter by asset"
-				bind:value={assetFilter}
-				onchange={() => void loadLeaderboard()}
+		<span class="fine" style="margin: 0">Ranked by settled results</span>
+		<div class="actions">
+			<button
+				class="btn"
+				type="button"
+				class:primary={sortBy === 'profit'}
+				onclick={() => (sortBy = 'profit')}
 			>
-				<option value="ALL">All assets</option>
-				<option value="BTC">BTC only</option>
-				<option value="ETH">ETH only</option>
-			</select>
-		</label>
+				Profit
+			</button>
+			<button
+				class="btn"
+				type="button"
+				class:primary={sortBy === 'correctness'}
+				onclick={() => (sortBy = 'correctness')}
+			>
+				Correctness
+			</button>
+			<label>
+				<span class="sr-only">Filter by asset</span>
+				<select
+					aria-label="Filter by asset"
+					bind:value={assetFilter}
+					onchange={() => void loadLeaderboard()}
+				>
+					<option value="ALL">All assets</option>
+					<option value="BTC">BTC only</option>
+					<option value="ETH">ETH only</option>
+				</select>
+			</label>
+		</div>
 	</section>
 
 	{#if loading}<p class="fine">Loading leaderboard...</p>{/if}
 	{#if error}<p class="form-error">{error}</p>{/if}
 	{#if standings.length}
 		<section class="podium" aria-label="Top three players">
-			{#each standings.slice(0, 3) as standing (standing.profile.id)}
-				<div class="podium-item" class:first={standing.rank === 1}>
-					<span class="medal"
-						>{standing.rank === 1 ? 'Gold' : standing.rank === 2 ? 'Silver' : 'Bronze'}</span
-					>
+			{#each sortedStandings.slice(0, 3) as standing, index (standing.profile.id)}
+				<div class="podium-item" class:first={index === 0}>
+					<span class="medal">{index === 0 ? 'Gold' : index === 1 ? 'Silver' : 'Bronze'}</span>
 					<PlayerName profile={profileFromApi(standing.profile)} />
 					<small
-						>{standing.totalScore.toLocaleString()} pts · {standing.tournaments} tournaments</small
+						>{standing.totalScore.toLocaleString()} pts · {standing.correctRounds} correct ·
+						{standing.tournaments} tournaments</small
 					>
 				</div>
 			{/each}
@@ -79,7 +106,7 @@
 				><tr><th>Player</th><th>Tournaments</th><th>Correct rounds</th><th>Points</th></tr></thead
 			>
 			<tbody>
-				{#each standings as standing (standing.profile.id)}
+				{#each sortedStandings as standing (standing.profile.id)}
 					<tr>
 						<td><PlayerName profile={profileFromApi(standing.profile)} /></td>
 						<td>{standing.tournaments}</td><td>{standing.correctRounds}</td><td
