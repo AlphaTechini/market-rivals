@@ -6,8 +6,15 @@ import { getDb } from '$lib/server/db';
 import { readJson, numberField, stringField } from '$lib/server/http';
 import { arenas, arenaParticipants, arenaRounds } from '$lib/server/db/schema';
 
-function isAsset(value: string | null): value is 'BTC' | 'ETH' {
-	return value === 'BTC' || value === 'ETH';
+// DreamDEX 15-minute series cadence: two rounds share one window, voting
+// phases run sequentially inside it (6 minutes + 1 minute gap + 6 minutes).
+const windowMinutes = 15;
+const phaseMinutes = 6;
+const phaseGapMinutes = 1;
+const maxRounds = 4;
+
+function isAsset(value: string | null): value is 'BTC' | 'ETH' | 'MIX' {
+	return value === 'BTC' || value === 'ETH' || value === 'MIX';
 }
 
 function isAccessType(value: string | null): value is 'PRIVATE' | 'PUBLIC' {
@@ -18,6 +25,23 @@ function isListStatus(value: string | null): value is 'JOINING' | 'LIVE' | 'COMP
 	return value === 'JOINING' || value === 'LIVE' || value === 'COMPLETED';
 }
 
+function roundAsset(asset: 'BTC' | 'ETH' | 'MIX', index: number): 'BTC' | 'ETH' {
+	if (asset === 'MIX') return index % 2 === 0 ? 'BTC' : 'ETH';
+	return asset;
+}
+
+function phaseFor(asset: 'BTC' | 'ETH' | 'MIX', index: number, startAt: Date) {
+	const start = new Date(startAt.getTime());
+	if (asset !== 'MIX') {
+		const opensAt = new Date(start.getTime() + index * windowMinutes * 60 * 1000);
+		return { opensAt, locksAt: new Date(opensAt.getTime() + phaseMinutes * 60 * 1000) };
+	}
+	const wave = Math.floor(index / 2);
+	const offsetMinutes = index % 2 === 0 ? 0 : phaseMinutes + phaseGapMinutes;
+	const opensAt = new Date(start.getTime() + (wave * windowMinutes + offsetMinutes) * 60 * 1000);
+	return { opensAt, locksAt: new Date(opensAt.getTime() + phaseMinutes * 60 * 1000) };
+}
+
 export async function GET({ url }) {
 	const statusParam = url.searchParams.get('status') ?? 'JOINING';
 	const status = isListStatus(statusParam) ? statusParam : null;
@@ -25,7 +49,8 @@ export async function GET({ url }) {
 	const asset = assetParam && isAsset(assetParam) ? assetParam : null;
 	if (!status)
 		return json({ error: 'Status must be JOINING, LIVE, or COMPLETED.' }, { status: 400 });
-	if (assetParam && !asset) return json({ error: 'Asset must be BTC or ETH.' }, { status: 400 });
+	if (assetParam && !asset)
+		return json({ error: 'Asset must be BTC, ETH, or MIX.' }, { status: 400 });
 
 	const filters = [eq(arenas.status, status), eq(arenas.accessType, 'PUBLIC')];
 	if (asset) filters.push(eq(arenas.asset, asset));
@@ -58,17 +83,19 @@ export async function POST(event) {
 	const description = stringField(body, 'description');
 	const roundCount = numberField(body, 'roundCount');
 	const maximumParticipants = numberField(body, 'maximumParticipants');
-	const roundIntervalMinutes = numberField(body, 'roundIntervalMinutes');
 	const entryFee = numberField(body, 'entryFee');
 
 	if (!name || name.length > 80 || !isAsset(asset) || !isAccessType(accessType)) {
 		return json(
-			{ error: 'Name, BTC or ETH asset, and access type are required.' },
+			{ error: 'Name, BTC, ETH, or MIX asset, and access type are required.' },
 			{ status: 400 }
 		);
 	}
-	if (!roundCount || !Number.isInteger(roundCount) || roundCount < 1) {
-		return json({ error: 'Round count must be a positive whole number.' }, { status: 400 });
+	if (!roundCount || !Number.isInteger(roundCount) || roundCount < 1 || roundCount > maxRounds) {
+		return json(
+			{ error: `Round count must be a whole number between 1 and ${maxRounds}.` },
+			{ status: 400 }
+		);
 	}
 	if (
 		!maximumParticipants ||
@@ -78,17 +105,6 @@ export async function POST(event) {
 	) {
 		return json(
 			{ error: 'Maximum participants must be a whole number between 2 and 100.' },
-			{ status: 400 }
-		);
-	}
-	if (
-		!roundIntervalMinutes ||
-		!Number.isInteger(roundIntervalMinutes) ||
-		roundIntervalMinutes < 3 ||
-		roundIntervalMinutes > 20
-	) {
-		return json(
-			{ error: 'Round interval must be a whole number between 3 and 20 minutes.' },
 			{ status: 400 }
 		);
 	}
@@ -112,7 +128,7 @@ export async function POST(event) {
 				inviteCode,
 				roundCount,
 				maximumParticipants,
-				roundIntervalMinutes,
+				roundIntervalMinutes: windowMinutes,
 				entryFee: entryFee.toFixed(8),
 				startAt,
 				description
@@ -126,12 +142,13 @@ export async function POST(event) {
 		});
 
 		const rounds = Array.from({ length: roundCount }, (_, index) => {
-			const opensAt = new Date(startAt.getTime() + index * roundIntervalMinutes * 60 * 1000);
+			const { opensAt, locksAt } = phaseFor(asset, index, startAt);
 			return {
 				arenaId: arena.id,
 				roundNumber: index + 1,
+				asset: roundAsset(asset, index),
 				opensAt,
-				locksAt: new Date(opensAt.getTime() + roundIntervalMinutes * 60 * 1000)
+				locksAt
 			};
 		});
 		await tx.insert(arenaRounds).values(rounds);

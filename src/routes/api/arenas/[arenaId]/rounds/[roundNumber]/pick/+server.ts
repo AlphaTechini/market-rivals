@@ -13,6 +13,9 @@ const decimalPattern = /^\d+(\.\d{1,18})?$/;
 const rpcUrl = env.DREAMDEX_RPC_URL?.trim() || somniaShannon.rpcUrls.default.http[0];
 const publicClient = createPublicClient({ chain: somniaShannon, transport: http(rpcUrl) });
 
+const changeWindowMs = 3 * 60 * 1000;
+const marketCutBufferMs = 60 * 1000;
+
 function isDirection(value: string | null): value is 'UP' | 'DOWN' {
 	return value === 'UP' || value === 'DOWN';
 }
@@ -75,8 +78,11 @@ export async function POST(event) {
 	if (!round) return json({ error: 'Round not found.' }, { status: 404 });
 
 	const now = new Date();
-	if (now < round.opensAt || now >= round.locksAt) {
-		return json({ error: 'This round is not accepting predictions.' }, { status: 409 });
+	const marketCutMs = round.marketExpiresAt
+		? round.marketExpiresAt.getTime() - marketCutBufferMs
+		: round.locksAt.getTime();
+	if (now.getTime() >= marketCutMs) {
+		return json({ error: 'Picks are closed for this round.' }, { status: 409 });
 	}
 
 	const [participant] = await db
@@ -115,47 +121,110 @@ export async function POST(event) {
 	}
 
 	const status = Number(filledQuantity) > 0 ? 'CONFIRMED' : 'MISSED';
-	const result = await db.transaction(async (tx) => {
-		const [freshRound] = await tx
-			.select()
-			.from(arenaRounds)
-			.where(eq(arenaRounds.id, round.id))
-			.limit(1);
-		if (!freshRound) throw new Error('Round disappeared before pick persistence.');
-		if (
-			freshRound.dreamDexMarketId &&
-			freshRound.dreamDexMarketId.toLowerCase() !== marketId.toLowerCase()
-		) {
-			throw new Error('This round is bound to a different DreamDEX market.');
-		}
-		if (!freshRound.dreamDexMarketId) {
-			await tx
-				.update(arenaRounds)
-				.set({ dreamDexMarketId: marketId, marketSymbol, status: 'TRADING' })
-				.where(eq(arenaRounds.id, round.id));
-		}
+	let result: { pick: { id: string; status: string }; changed: boolean };
+	try {
+		result = await db.transaction(async (tx) => {
+			const [freshRound] = await tx
+				.select()
+				.from(arenaRounds)
+				.where(eq(arenaRounds.id, round.id))
+				.limit(1);
+			if (!freshRound) throw new Error('Round disappeared before pick persistence.');
+			if (
+				freshRound.dreamDexMarketId &&
+				freshRound.dreamDexMarketId.toLowerCase() !== marketId.toLowerCase()
+			) {
+				throw new Error('This round is bound to a different DreamDEX market.');
+			}
+			if (!freshRound.dreamDexMarketId) {
+				await tx
+					.update(arenaRounds)
+					.set({
+						dreamDexMarketId: marketId,
+						marketSymbol,
+						marketExpiresAt: new Date(Number(onchain.expiry) * 1000),
+						status: 'TRADING'
+					})
+					.where(eq(arenaRounds.id, round.id));
+			}
 
-		const [pick] = await tx
-			.insert(arenaPicks)
-			.values({
-				arenaId: event.params.arenaId,
-				roundId: round.id,
-				participantId: participant.id,
-				walletAddress: profile.walletAddress,
-				selectedSide: direction,
-				orderTransactionHash: transactionHash,
-				averageFillPrice,
-				filledQuantity,
-				submittedAt: new Date(),
-				verifiedAt: new Date(),
-				status
-			})
-			.onConflictDoNothing()
-			.returning({ id: arenaPicks.id, status: arenaPicks.status });
-		return pick;
-	});
+			const [existingPick] = await tx
+				.select()
+				.from(arenaPicks)
+				.where(and(eq(arenaPicks.roundId, round.id), eq(arenaPicks.participantId, participant.id)))
+				.limit(1);
 
-	if (!result)
-		return json({ error: 'A prediction already exists for this round.' }, { status: 409 });
-	return json({ pickId: result.id, status: result.status, transactionHash }, { status: 201 });
+			if (existingPick) {
+				if (existingPick.status === 'CONFIRMED' && existingPick.roundScore !== null) {
+					throw new Error('This round is already settled; the pick cannot change.');
+				}
+				const firstAt = existingPick.initialSubmittedAt ?? existingPick.submittedAt ?? now;
+				const changeDeadlineMs = Math.min(
+					firstAt.getTime() + changeWindowMs,
+					freshRound.marketExpiresAt
+						? freshRound.marketExpiresAt.getTime() - marketCutBufferMs
+						: freshRound.locksAt.getTime()
+				);
+				if (now.getTime() > changeDeadlineMs) {
+					throw new Error('The change window for this pick has closed.');
+				}
+				if (existingPick.selectedSide === direction) {
+					throw new Error('The new pick matches the current side.');
+				}
+
+				const [changed] = await tx
+					.update(arenaPicks)
+					.set({
+						selectedSide: direction,
+						orderTransactionHash: transactionHash,
+						averageFillPrice,
+						filledQuantity,
+						submittedAt: now,
+						verifiedAt: now,
+						status,
+						changedAt: now
+					})
+					.where(eq(arenaPicks.id, existingPick.id))
+					.returning({ id: arenaPicks.id, status: arenaPicks.status });
+				return { pick: changed, changed: true };
+			}
+
+			const [pick] = await tx
+				.insert(arenaPicks)
+				.values({
+					arenaId: event.params.arenaId,
+					roundId: round.id,
+					participantId: participant.id,
+					walletAddress: profile.walletAddress,
+					selectedSide: direction,
+					initialSide: direction,
+					initialSubmittedAt: now,
+					initialTransactionHash: transactionHash,
+					orderTransactionHash: transactionHash,
+					averageFillPrice,
+					filledQuantity,
+					submittedAt: now,
+					verifiedAt: now,
+					status
+				})
+				.onConflictDoNothing()
+				.returning({ id: arenaPicks.id, status: arenaPicks.status });
+			if (!pick) throw new Error('A prediction already exists for this round.');
+			return { pick, changed: false };
+		});
+	} catch (cause) {
+		return json(
+			{ error: cause instanceof Error ? cause.message : 'The pick was rejected.' },
+			{ status: 409 }
+		);
+	}
+	return json(
+		{
+			pickId: result.pick.id,
+			status: result.pick.status,
+			changed: result.changed,
+			transactionHash
+		},
+		{ status: result.changed ? 200 : 201 }
+	);
 }
