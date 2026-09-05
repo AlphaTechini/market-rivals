@@ -9,6 +9,56 @@ export type ApiProfile = {
 	avatarUrl: string | null;
 };
 
+export type ArenaRecord = {
+	id: string;
+	name: string;
+	asset: 'BTC' | 'ETH';
+	accessType: 'PRIVATE' | 'PUBLIC';
+	status: 'JOINING' | 'LIVE' | 'COMPLETED' | 'CANCELLED';
+	roundCount: number;
+	contractQuantity: number;
+	maximumParticipants: number;
+	roundIntervalMinutes: number;
+	entryFee: string;
+	startAt: string;
+	description: string | null;
+	createdAt: string;
+	completedAt: string | null;
+	hostProfileId: string;
+};
+
+export type ApiAchievement = {
+	participantId: string;
+	type: string;
+	title: string;
+	awardedAt: string;
+};
+
+export type ArenaRoundResult = {
+	roundNumber: number;
+	asset: 'BTC' | 'ETH';
+	status: string;
+	winningSide: 'UP' | 'DOWN' | null;
+	opensAt: string;
+	picks: Array<{
+		participantId: string;
+		selectedSide: 'UP' | 'DOWN';
+		status: string;
+		roundScore: string | null;
+		changed: boolean;
+	}>;
+};
+
+export type RivalryRecord = {
+	profileId: string;
+	displayName: string;
+	avatarUrl: string | null;
+	roundsTogether: number;
+	wins: number;
+	losses: number;
+	ties: number;
+};
+
 export type LeaderboardEntry = {
 	rank: number;
 	profile: ApiProfile;
@@ -18,19 +68,87 @@ export type LeaderboardEntry = {
 };
 
 export type ArenaSummary = {
-	arena: {
-		id: string;
-		name: string;
-		asset: 'BTC' | 'ETH';
-		status: string;
-		roundCount: number;
-		maximumParticipants: number;
-	};
+	arena: ArenaRecord;
+	inviteCode: string | null;
+	host: ApiProfile | null;
 	participants: Array<{
+		participantId: string;
 		totalScore: string;
 		correctRounds: number;
+		missedRounds: number;
+		finalRank: number | null;
+		rank: number;
 		profile: ApiProfile;
 	}>;
+	achievements: ApiAchievement[];
+	rounds: ArenaRoundResult[];
+};
+
+export type StageLine = { kind: 'leader' | 'split' | 'same' | 'recap' | 'void'; text: string };
+
+export type RoundDetail = {
+	round: {
+		roundNumber: number;
+		asset: 'BTC' | 'ETH';
+		status: 'SCHEDULED' | 'TRADING' | 'LOCKED' | 'SETTLED' | 'VOIDED' | 'MISSED';
+		marketSymbol: string | null;
+		dreamDexMarketId: string | null;
+		opensAt: string;
+		locksAt: string;
+		marketExpiresAt: string | null;
+		settlesAt: string | null;
+		winningSide: 'UP' | 'DOWN' | null;
+		openingPrice: string | null;
+		closingPrice: string | null;
+	};
+	pickDeadline: string;
+	votePhaseEnd: string;
+	pickedCount: number;
+	participantCount: number;
+	stage: {
+		phase: 'PENDING' | 'CONDITIONAL' | 'SETTLED' | 'VOIDED';
+		headline: string;
+		lines: StageLine[];
+	};
+	myPick: {
+		selectedSide: 'UP' | 'DOWN';
+		status: string;
+		averageFillPrice: string | null;
+		filledQuantity: string | null;
+		roundScore: string | null;
+		settlementValue: string | null;
+		orderTransactionHash: string | null;
+		changed: boolean;
+		submittedAt: string | null;
+	} | null;
+	canChange: boolean;
+	changeDeadline: string | null;
+	picks: RoundPick[];
+	standings: Array<{
+		participantId: string;
+		displayName: string;
+		avatarUrl: string | null;
+		walletAddress: string;
+		totalScore: string;
+		correctRounds: number;
+		missedRounds: number;
+		finalRank: number | null;
+		rank: number;
+	}>;
+};
+
+export type RoundPick = {
+	participantId: string;
+	displayName: string;
+	avatarUrl: string | null;
+	walletAddress: string;
+	selectedSide: 'UP' | 'DOWN';
+	initialSide?: 'UP' | 'DOWN' | null;
+	changed?: boolean;
+	status: string;
+	averageFillPrice: string | null;
+	filledQuantity?: string | null;
+	roundScore: string | null;
 };
 
 export type LiveArena = {
@@ -58,6 +176,10 @@ async function request<T>(input: RequestInfo | URL, init?: RequestInit): Promise
 	return body as T;
 }
 
+export function fetchMyProfile(): Promise<ApiProfile | null> {
+	return request<{ profile: ApiProfile | null }>('/api/me').then((body) => body.profile);
+}
+
 export function fetchLeaderboard(asset: 'ALL' | 'BTC' | 'ETH'): Promise<LeaderboardEntry[]> {
 	const query = asset === 'ALL' ? '' : `?asset=${asset}`;
 	return request<LeaderboardEntry[]>(`/api/leaderboard${query}`);
@@ -65,6 +187,17 @@ export function fetchLeaderboard(asset: 'ALL' | 'BTC' | 'ETH'): Promise<Leaderbo
 
 export function fetchArenaSummary(arenaId: string): Promise<ArenaSummary> {
 	return request<ArenaSummary>(`/api/arenas/${arenaId}/summary`);
+}
+
+export function fetchRoundDetail(arenaId: string, roundNumber: number): Promise<RoundDetail> {
+	return request<RoundDetail>(`/api/arenas/${arenaId}/rounds/${roundNumber}`);
+}
+
+export function fetchRivalries(): Promise<{
+	rivalries: RivalryRecord[];
+	tiedRival: RivalryRecord | null;
+}> {
+	return request<{ rivalries: RivalryRecord[]; tiedRival: RivalryRecord | null }>('/api/rivalries');
 }
 
 function fetchArenas(status: ArenaListStatus, asset?: 'BTC' | 'ETH'): Promise<LiveArena[]> {
@@ -117,7 +250,7 @@ export function submitArenaPick(input: {
 
 export async function createArena(input: {
 	name: string;
-	asset: 'BTC' | 'ETH';
+	asset: 'BTC' | 'ETH' | 'MIX';
 	accessType: 'PRIVATE' | 'PUBLIC';
 	roundCount: number;
 	maximumParticipants: number;
@@ -182,6 +315,10 @@ export function profileFromApi(profile: ApiProfile) {
 
 export function isUuid(value: string): boolean {
 	return /^[0-9a-f]{8}-[0-9a-f]{4}-[1-5][0-9a-f]{3}-[89ab][0-9a-f]{3}-[0-9a-f]{12}$/i.test(value);
+}
+
+export function explorerTransactionUrl(hash: string): string {
+	return `https://shannon-explorer.somnia.network/tx/${hash}`;
 }
 
 export type WalletAddress = Address;

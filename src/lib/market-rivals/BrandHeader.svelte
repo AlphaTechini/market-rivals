@@ -1,7 +1,9 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import type { Pathname } from '$app/types';
+	import { onMount } from 'svelte';
 	import PresenceStatus from './PresenceStatus.svelte';
+	import { fetchMyProfile, type ApiProfile } from './api';
 
 	type Props = {
 		mode?: 'landing' | 'app' | 'minimal';
@@ -16,6 +18,20 @@
 		actionHref = '/dashboard',
 		onConnect
 	}: Props = $props();
+
+	let profile = $state<ApiProfile | null>(null);
+
+	onMount(async () => {
+		try {
+			profile = await fetchMyProfile();
+		} catch {
+			profile = null;
+		}
+	});
+
+	let shortWallet = $derived(
+		profile ? `${profile.walletAddress.slice(0, 4)}...${profile.walletAddress.slice(-4)}` : ''
+	);
 </script>
 
 <header class="wrap topbar">
@@ -29,9 +45,13 @@
 			<a href={resolve('/#how')}>How it works</a>
 			<a href={resolve('/#why')}>Why compete</a>
 			{#if onConnect}
-				<button class="btn primary" type="button" onclick={onConnect}>Connect wallet</button>
+				<button class="btn primary" type="button" onclick={onConnect}>
+					{profile ? shortWallet : 'Connect wallet'}
+				</button>
 			{:else}
-				<a class="btn primary" href={resolve('/dashboard')}>Connect wallet</a>
+				<a class="btn primary" href={resolve(profile ? '/dashboard' : '/')}>
+					{profile ? shortWallet : 'Connect wallet'}
+				</a>
 			{/if}
 		</nav>
 	{:else if mode === 'minimal'}
@@ -40,7 +60,11 @@
 		<div class="actions">
 			<PresenceStatus />
 			<span class="pill"><i class="dot"></i> Somnia Testnet</span>
-			<button class="btn" type="button">0x71...9C2</button>
+			{#if profile}
+				<span class="pill" title={profile.walletAddress}>{profile.displayName}</span>
+			{:else}
+				<a class="btn" href={resolve('/')}>Connect</a>
+			{/if}
 		</div>
 	{/if}
 </header>

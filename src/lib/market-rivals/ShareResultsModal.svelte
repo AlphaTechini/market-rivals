@@ -2,11 +2,16 @@
 	type Props = {
 		open: boolean;
 		onClose: () => void;
+		resultUrl?: string;
+		resultText?: string;
 	};
 
-	let { open, onClose }: Props = $props();
-	const resultUrl = 'https://marketrivals.xyz/tournaments/alpha-weekend/final';
-	const resultText = 'I finished an on-chain Market Rivals tournament. Can you beat my score?';
+	let {
+		open,
+		onClose,
+		resultUrl = '',
+		resultText = 'I finished an on-chain Market Rivals tournament. Can you beat my score?'
+	}: Props = $props();
 
 	function shareTo(kind: 'whatsapp' | 'telegram' | 'gmail' | 'x' | 'linkedin') {
 		const url = encodeURIComponent(resultUrl);
