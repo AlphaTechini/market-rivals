@@ -8,4 +8,6 @@ To find PostgreSQL connection setup visit [db/index.ts](./db/index.ts).
 
 To find deterministic round score calculation visit [scoring.ts](./scoring.ts).
 
+To find scheduled round lifecycle, settlement, and final ranking logic visit [round-processor.ts](./round-processor.ts).
+
 The Supabase server connection can be found in [supabase.ts](file:///C:/Hackathons/DreamDEX/frontend/src/lib/server/supabase.ts).
