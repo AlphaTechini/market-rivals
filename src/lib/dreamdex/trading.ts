@@ -1,5 +1,10 @@
 import { formatUnits, isHash, type Address, type Hash, type Hex } from 'viem';
-import type { BinaryMarket, SomniaMarkets, UnifiedMarket } from '@somnia-chain/markets-sdk';
+import type {
+	BinaryMarket,
+	MarketOnchain,
+	SomniaMarkets,
+	UnifiedMarket
+} from '@somnia-chain/markets-sdk';
 import { discoverTradableBinaryMarkets } from './markets';
 import { createBrowserDreamdexExchange } from './wallet';
 
@@ -46,15 +51,15 @@ function bestAsk(book: { asks: [number, number][] }): number | null {
 	return book.asks[0]?.[0] ?? null;
 }
 
-export async function prepareLiveBinaryTrade(
-	asset: 'BTC' | 'ETH'
+async function tradeContextForMarket(
+	exchange: SomniaMarkets,
+	account: Address,
+	marketId: Hex,
+	onchain: MarketOnchain,
+	question: string
 ): Promise<LiveBinaryTradeContext> {
-	const { exchange, account } = await createBrowserDreamdexExchange();
-	const [candidate] = await discoverTradableBinaryMarkets(exchange, { asset, limit: 10 });
-	if (!candidate) throw new Error(`No live ${asset} Up/Down Event Contract is trading right now.`);
-
 	const markets = await exchange.loadMarkets();
-	const unified = unifiedMarketFor(markets, candidate.market.marketId);
+	const unified = unifiedMarketFor(markets, marketId);
 	const outcomes = unified?.outcomes;
 	if (!unified || unified.type !== 'binary' || !outcomes || outcomes.length < 2) {
 		throw new Error('The live market has no usable Up/Down outcome symbols.');
@@ -70,18 +75,54 @@ export async function prepareLiveBinaryTrade(
 	return {
 		exchange,
 		account,
-		marketId: candidate.market.marketId,
-		marketAddress: candidate.onchain.marketAddress,
-		poolAddress: candidate.onchain.pool,
-		question: candidate.market.question,
-		expiry: Number(candidate.onchain.expiry),
+		marketId,
+		marketAddress: onchain.marketAddress,
+		poolAddress: onchain.pool,
+		question,
+		expiry: Number(onchain.expiry),
 		upSymbol: up.symbol,
 		downSymbol: down.symbol,
 		upPrice: bestAsk(upBook),
 		downPrice: bestAsk(downBook),
 		contractQuantity: 10,
-		decimals: candidate.onchain.decimals
+		decimals: onchain.decimals
 	};
+}
+
+export async function prepareLiveBinaryTrade(
+	asset: 'BTC' | 'ETH'
+): Promise<LiveBinaryTradeContext> {
+	const { exchange, account } = await createBrowserDreamdexExchange();
+	const [candidate] = await discoverTradableBinaryMarkets(exchange, { asset, limit: 10 });
+	if (!candidate) throw new Error(`No live ${asset} Up/Down Event Contract is trading right now.`);
+
+	return tradeContextForMarket(
+		exchange,
+		account,
+		candidate.market.marketId,
+		candidate.onchain,
+		candidate.market.question
+	);
+}
+
+export async function prepareRoundTrade(marketId: string): Promise<LiveBinaryTradeContext> {
+	if (!/^0x[0-9a-f]{64}$/i.test(marketId)) {
+		throw new Error('The round is not bound to a valid DreamDEX market yet.');
+	}
+	const { exchange, account } = await createBrowserDreamdexExchange();
+	const onchain = await exchange.client.getMarketOnchain(marketId as Hex);
+	if (onchain.status !== 1) {
+		throw new Error('This round is no longer trading on DreamDEX.');
+	}
+	const market = await exchange.client.getBinaryMarket(marketId as Hex);
+
+	return tradeContextForMarket(
+		exchange,
+		account,
+		marketId as Hex,
+		onchain,
+		market?.question ?? 'Live Up/Down market'
+	);
 }
 
 export async function placeMarketIocPrediction(
