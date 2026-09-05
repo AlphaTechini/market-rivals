@@ -22,11 +22,11 @@ function parseScaledDecimal(value: string): bigint {
 	return BigInt(whole) * priceScale + BigInt(fraction.padEnd(18, '0') || '0');
 }
 
-function formatScaledDecimal(value: bigint, scale: bigint, decimalPlaces: number): string {
+function formatScaledDecimal(value: bigint, decimalPlaces: number): string {
 	const negative = value < 0n;
 	const absolute = negative ? -value : value;
-	const whole = absolute / scale;
-	const fraction = ((absolute % scale) * 10n ** BigInt(decimalPlaces)) / scale;
+	const whole = absolute / priceScale;
+	const fraction = ((absolute % priceScale) * 10n ** BigInt(decimalPlaces)) / priceScale;
 	const fractionText = fraction.toString().padStart(decimalPlaces, '0').replace(/0+$/, '');
 	return `${negative ? '-' : ''}${whole}${fractionText ? `.${fractionText}` : ''}`;
 }
@@ -46,8 +46,8 @@ export function calculateRoundScore(input: RoundScoreInput): RoundScoreResult {
 	return {
 		settlementValue,
 		correct,
-		roundScore: formatScaledDecimal(difference * 100n, priceScale, 8),
-		actualTestnetPnl: formatScaledDecimal(filledQuantity * difference, priceScale, 18)
+		roundScore: formatScaledDecimal(difference * 100n, 8),
+		actualTestnetPnl: formatScaledDecimal(filledQuantity * difference, 18)
 	};
 }
 

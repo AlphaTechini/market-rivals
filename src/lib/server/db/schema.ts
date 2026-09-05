@@ -13,7 +13,7 @@ import {
 	uuid
 } from 'drizzle-orm/pg-core';
 
-export const arenaAsset = pgEnum('arena_asset', ['BTC', 'ETH']);
+export const arenaAsset = pgEnum('arena_asset', ['BTC', 'ETH', 'MIX']);
 export const arenaAccessType = pgEnum('arena_access_type', ['PRIVATE', 'PUBLIC']);
 export const arenaStatus = pgEnum('arena_status', ['JOINING', 'LIVE', 'COMPLETED', 'CANCELLED']);
 export const roundStatus = pgEnum('round_status', [
@@ -21,6 +21,7 @@ export const roundStatus = pgEnum('round_status', [
 	'TRADING',
 	'LOCKED',
 	'SETTLED',
+	'VOIDED',
 	'MISSED'
 ]);
 export const side = pgEnum('side', ['UP', 'DOWN']);
@@ -124,8 +125,10 @@ export const arenaRounds = pgTable(
 			.notNull()
 			.references(() => arenas.id, { onDelete: 'cascade' }),
 		roundNumber: integer('round_number').notNull(),
+		asset: arenaAsset('asset').notNull().default('BTC'),
 		dreamDexMarketId: text('dreamdex_market_id'),
 		marketSymbol: text('market_symbol'),
+		marketExpiresAt: timestamp('market_expires_at', { withTimezone: true }),
 		openingPrice: numeric('opening_price', { precision: 38, scale: 18 }),
 		closingPrice: numeric('closing_price', { precision: 38, scale: 18 }),
 		opensAt: timestamp('opens_at', { withTimezone: true }).notNull(),
@@ -155,6 +158,10 @@ export const arenaPicks = pgTable(
 			.references(() => arenaParticipants.id, { onDelete: 'cascade' }),
 		walletAddress: text('wallet_address').notNull(),
 		selectedSide: side('selected_side').notNull(),
+		initialSide: side('initial_side'),
+		initialSubmittedAt: timestamp('initial_submitted_at', { withTimezone: true }),
+		initialTransactionHash: text('initial_transaction_hash'),
+		changedAt: timestamp('changed_at', { withTimezone: true }),
 		orderTransactionHash: text('order_transaction_hash'),
 		averageFillPrice: numeric('average_fill_price', { precision: 38, scale: 18 }),
 		filledQuantity: numeric('filled_quantity', { precision: 38, scale: 18 }),
