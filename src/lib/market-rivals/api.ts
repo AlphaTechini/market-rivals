@@ -12,7 +12,7 @@ export type ApiProfile = {
 export type ArenaRecord = {
 	id: string;
 	name: string;
-	asset: 'BTC' | 'ETH';
+	asset: 'BTC' | 'ETH' | 'MIX';
 	accessType: 'PRIVATE' | 'PUBLIC';
 	status: 'JOINING' | 'LIVE' | 'COMPLETED' | 'CANCELLED';
 	roundCount: number;
@@ -154,7 +154,7 @@ export type RoundPick = {
 export type LiveArena = {
 	id: string;
 	name: string;
-	asset: 'BTC' | 'ETH';
+	asset: 'BTC' | 'ETH' | 'MIX';
 	status: string;
 	roundCount: number;
 	maximumParticipants: number;
@@ -176,6 +176,28 @@ async function request<T>(input: RequestInfo | URL, init?: RequestInit): Promise
 	return body as T;
 }
 
+const activeReconciliations = new Map<string, Promise<void>>();
+
+async function reconcileArena(arenaId: string): Promise<void> {
+	const active = activeReconciliations.get(arenaId);
+	if (active) return active;
+
+	const reconciliation = fetch(`/api/arenas/${arenaId}/reconcile`, { method: 'POST' })
+		.then(async (response) => {
+			// Public lobbies remain readable before wallet connection. A signed-in
+			// visitor triggers reconciliation; anonymous visitors simply read data.
+			if (response.status === 401) return;
+			if (response.ok) return;
+			const body: unknown = await response.json().catch(() => null);
+			const message = body && typeof body === 'object' && 'error' in body ? body.error : null;
+			console.warn(typeof message === 'string' ? message : 'Arena reconciliation failed.');
+		})
+		.finally(() => activeReconciliations.delete(arenaId));
+
+	activeReconciliations.set(arenaId, reconciliation);
+	return reconciliation;
+}
+
 export function fetchMyProfile(): Promise<ApiProfile | null> {
 	return request<{ profile: ApiProfile | null }>('/api/me').then((body) => body.profile);
 }
@@ -185,11 +207,13 @@ export function fetchLeaderboard(asset: 'ALL' | 'BTC' | 'ETH'): Promise<Leaderbo
 	return request<LeaderboardEntry[]>(`/api/leaderboard${query}`);
 }
 
-export function fetchArenaSummary(arenaId: string): Promise<ArenaSummary> {
+export async function fetchArenaSummary(arenaId: string): Promise<ArenaSummary> {
+	await reconcileArena(arenaId);
 	return request<ArenaSummary>(`/api/arenas/${arenaId}/summary`);
 }
 
-export function fetchRoundDetail(arenaId: string, roundNumber: number): Promise<RoundDetail> {
+export async function fetchRoundDetail(arenaId: string, roundNumber: number): Promise<RoundDetail> {
+	await reconcileArena(arenaId);
 	return request<RoundDetail>(`/api/arenas/${arenaId}/rounds/${roundNumber}`);
 }
 

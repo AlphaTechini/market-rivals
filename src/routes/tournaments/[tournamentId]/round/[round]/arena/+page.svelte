@@ -8,7 +8,6 @@
 	import Countdown from '$lib/market-rivals/Countdown.svelte';
 	import PlayerList from '$lib/market-rivals/PlayerList.svelte';
 	import {
-		fetchArenaSummary,
 		fetchRoundDetail,
 		isUuid,
 		submitArenaPick,
@@ -43,10 +42,7 @@
 				return;
 			}
 
-			const [summary, round] = await Promise.all([
-				fetchArenaSummary(id),
-				fetchRoundDetail(id, roundNumber)
-			]);
+			const round = await fetchRoundDetail(id, roundNumber);
 			roundDetail = round;
 
 			if (round.round.status === 'LOCKED') {
@@ -60,7 +56,7 @@
 
 			trade = round.round.dreamDexMarketId
 				? await prepareRoundTrade(round.round.dreamDexMarketId)
-				: await prepareLiveBinaryTrade(summary.arena.asset);
+				: await prepareLiveBinaryTrade(round.round.asset);
 		} catch (cause) {
 			marketError =
 				cause instanceof Error ? cause.message : 'Live DreamDEX market could not be loaded.';

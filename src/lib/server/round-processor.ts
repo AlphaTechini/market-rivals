@@ -18,8 +18,6 @@ import {
 } from '$lib/server/db/schema';
 
 const terminalRoundStatuses = ['SETTLED', 'VOIDED', 'MISSED'] as const;
-// keep a run short enough for a serverless function; the cron re-runs every
-// minute and terminal statuses make each pass idempotent
 const processorBatchSize = 8;
 
 type ProcessorResult = {
@@ -173,6 +171,7 @@ async function liveMarketsFor(exchange: SomniaMarkets, asset: 'BTC' | 'ETH', now
 
 async function bindScheduledRounds(
 	exchange: SomniaMarkets,
+	arenaId: string,
 	now: Date,
 	result: ProcessorResult
 ): Promise<void> {
@@ -183,6 +182,7 @@ async function bindScheduledRounds(
 		.innerJoin(arenas, eq(arenaRounds.arenaId, arenas.id))
 		.where(
 			and(
+				eq(arenaRounds.arenaId, arenaId),
 				eq(arenas.status, 'LIVE'),
 				eq(arenaRounds.status, 'SCHEDULED'),
 				lte(arenaRounds.opensAt, now)
@@ -540,6 +540,7 @@ async function voidRound(roundId: string, now: Date, result: ProcessorResult): P
 
 async function processActiveRounds(
 	exchange: SomniaMarkets,
+	arenaId: string,
 	now: Date,
 	result: ProcessorResult
 ): Promise<void> {
@@ -550,6 +551,7 @@ async function processActiveRounds(
 		.innerJoin(arenas, eq(arenaRounds.arenaId, arenas.id))
 		.where(
 			and(
+				eq(arenaRounds.arenaId, arenaId),
 				eq(arenas.status, 'LIVE'),
 				not(inArray(arenaRounds.status, terminalRoundStatuses)),
 				inArray(arenaRounds.status, ['TRADING', 'LOCKED'])
@@ -575,12 +577,12 @@ async function processActiveRounds(
 	}
 }
 
-export async function processArenaRounds(now = new Date()): Promise<ProcessorResult> {
+export async function reconcileArena(arenaId: string, now = new Date()): Promise<ProcessorResult> {
 	const db = getDb();
 	const started = await db
 		.update(arenas)
 		.set({ status: 'LIVE' })
-		.where(and(eq(arenas.status, 'JOINING'), lte(arenas.startAt, now)))
+		.where(and(eq(arenas.id, arenaId), eq(arenas.status, 'JOINING'), lte(arenas.startAt, now)))
 		.returning({ id: arenas.id });
 	const result: ProcessorResult = {
 		arenasStarted: started.length,
@@ -592,10 +594,16 @@ export async function processArenaRounds(now = new Date()): Promise<ProcessorRes
 		missedApplied: 0
 	};
 
+	const [arena] = await db
+		.select({ status: arenas.status })
+		.from(arenas)
+		.where(eq(arenas.id, arenaId));
+	if (!arena || arena.status !== 'LIVE') return result;
+
 	const exchange = createDreamdexExchange();
 	try {
-		await bindScheduledRounds(exchange, now, result);
-		await processActiveRounds(exchange, now, result);
+		await bindScheduledRounds(exchange, arenaId, now, result);
+		await processActiveRounds(exchange, arenaId, now, result);
 		return result;
 	} finally {
 		await exchange.close();
