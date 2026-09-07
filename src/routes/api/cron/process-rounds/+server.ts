@@ -2,6 +2,10 @@ import { env } from '$env/dynamic/private';
 import { json } from '@sveltejs/kit';
 import { processArenaRounds } from '$lib/server/round-processor';
 
+export const config = {
+	maxDuration: 60
+};
+
 export async function GET({ request }) {
 	const secret = env.CRON_SECRET?.trim();
 	if (!secret) return json({ error: 'Cron processor is not configured.' }, { status: 503 });

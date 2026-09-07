@@ -18,7 +18,9 @@ import {
 } from '$lib/server/db/schema';
 
 const terminalRoundStatuses = ['SETTLED', 'VOIDED', 'MISSED'] as const;
-const processorBatchSize = 25;
+// keep a run short enough for a serverless function; the cron re-runs every
+// minute and terminal statuses make each pass idempotent
+const processorBatchSize = 8;
 
 type ProcessorResult = {
 	arenasStarted: number;
