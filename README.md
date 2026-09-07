@@ -18,7 +18,7 @@ pnpm install
 cp .env.example .env
 ```
 
-Every variable is documented in [SUPABASE_SETUP.md](./SUPABASE_SETUP.md). You need a Supabase project (Session Pooler `DATABASE_URL`, service-role key, avatar bucket, anon key) and the DreamDEX Shannon defaults from `.env.example`, which already point at the working testnet endpoints. Generate a random `CRON_SECRET` too.
+Every variable is documented in [SUPABASE_SETUP.md](./SUPABASE_SETUP.md). You need a Supabase project (Session Pooler `DATABASE_URL`, service-role key, avatar bucket, anon key) and the DreamDEX Shannon defaults from `.env.example`, which already point at the working testnet endpoints.
 
 3. Apply the database migration (requires the `DATABASE_URL` from step 2):
 
@@ -38,11 +38,7 @@ pnpm dev
 - Get test STT from the Somnia faucet at `https://testnet.somnia.network/` and swap for USDso through DreamDEX so your wallet can pay for Event Contract orders.
 - Connect the wallet on the landing page, create a profile, create an arena, join with a second wallet, and make your picks during each live round.
 
-Round lifecycle is automated by `/api/cron/process-rounds` (see [vercel.json](./vercel.json)). Locally, trigger it manually with:
-
-```sh
-curl -H "Authorization: Bearer <CRON_SECRET>" http://localhost:5173/api/cron/process-rounds
-```
+Arena pages reconcile round lifecycle on demand. When a signed-in player opens an arena, the server reads the stored schedule and current DreamDEX market state, then applies any due transitions idempotently.
 
 ## Developing
 

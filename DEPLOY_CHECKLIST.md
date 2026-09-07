@@ -21,18 +21,17 @@ pnpm db:migrate
 
 Copy [.env.example](./.env.example) to `.env` and fill in:
 
-| Variable                      | Where it comes from                     | Notes                                 |
-| ----------------------------- | --------------------------------------- | ------------------------------------- |
-| `DATABASE_URL`                | Supabase Session Pooler URI             | Keep `sslmode=require`                |
-| `SUPABASE_URL`                | Project URL                             | Server-side storage writes            |
-| `SUPABASE_SERVICE_ROLE_KEY`   | service_role key                        | Server-only                           |
-| `SUPABASE_AVATARS_BUCKET`     | `avatars`                               | Bucket name from step 1               |
-| `PUBLIC_SUPABASE_URL`         | Project URL                             | Same value as `SUPABASE_URL`          |
-| `PUBLIC_SUPABASE_ANON_KEY`    | anon key                                | Public by design                      |
-| `PUBLIC_DREAMDEX_INDEXER_URL` | Default in `.env.example` already works | Shannon indexer                       |
-| `PUBLIC_DREAMDEX_WS_RPC_URL`  | Default in `.env.example` already works | Shannon websocket                     |
-| `DREAMDEX_RPC_URL`            | Default in `.env.example` already works | Server-side receipt verification      |
-| `CRON_SECRET`                 | Generate: any long random string        | Same value in local `.env` and Vercel |
+| Variable                      | Where it comes from                     | Notes                            |
+| ----------------------------- | --------------------------------------- | -------------------------------- |
+| `DATABASE_URL`                | Supabase Session Pooler URI             | Keep `sslmode=require`           |
+| `SUPABASE_URL`                | Project URL                             | Server-side storage writes       |
+| `SUPABASE_SERVICE_ROLE_KEY`   | service_role key                        | Server-only                      |
+| `SUPABASE_AVATARS_BUCKET`     | `avatars`                               | Bucket name from step 1          |
+| `PUBLIC_SUPABASE_URL`         | Project URL                             | Same value as `SUPABASE_URL`     |
+| `PUBLIC_SUPABASE_ANON_KEY`    | anon key                                | Public by design                 |
+| `PUBLIC_DREAMDEX_INDEXER_URL` | Default in `.env.example` already works | Shannon indexer                  |
+| `PUBLIC_DREAMDEX_WS_RPC_URL`  | Default in `.env.example` already works | Shannon websocket                |
+| `DREAMDEX_RPC_URL`            | Default in `.env.example` already works | Server-side receipt verification |
 
 The DreamDEX testnet defaults are already live endpoints; you do not need to change them.
 
@@ -64,13 +63,7 @@ Then run through the flow:
 2. Create an arena: **Mixed** asset, 2 rounds, start time ~10 minutes from now.
 3. Open the invite/lobby page, connect wallet 2, join the arena.
 4. When the arena starts, each wallet places an Up or Down pick (confirm dialog, real DreamDEX order).
-5. Trigger the processor (Vercel cron only runs in deployment):
-
-```sh
-curl -H "Authorization: Bearer <CRON_SECRET>" http://localhost:5173/api/cron/process-rounds
-```
-
-6. After the 15-minute window settles (a few minutes for the oracle), re-run step 5 and check:
+5. After the 15-minute window settles (a few minutes for the oracle), reopen the arena or result page. The signed-in page request reconciles the stored schedule with DreamDEX automatically. Check:
    - Round result page shows the winner, revealed picks, and round points.
    - Try the **Change pick** flow on round 2 (allowed until first pick + 3 min, capped at window close - 1 min).
    - Final page shows podium, achievements, rivalry records, and the round-by-round table.
@@ -80,7 +73,7 @@ curl -H "Authorization: Bearer <CRON_SECRET>" http://localhost:5173/api/cron/pro
 1. Push the repo (already on `main` at `github.com/AlphaTechini/market-rivals`).
 2. Import the repository in Vercel; the framework preset (SvelteKit + `@sveltejs/adapter-vercel`) is detected automatically. [svelte.config.js](./svelte.config.js) is already configured.
 3. Add **all** environment variables from step 2 in Project Settings → Environment Variables (Production and Preview).
-4. The per-minute cron schedule is in [vercel.json](./vercel.json). It requires the **Vercel Pro** plan; Vercel automatically sends `CRON_SECRET` as the bearer token to `/api/cron/process-rounds`.
+4. No Vercel Cron or separate worker is required. Signed-in arena reads call the built-in SvelteKit reconciliation endpoint, which catches the arena up from the database schedule and DreamDEX state.
 5. Deploy, then verify:
    - The landing page loads and wallet connect works.
    - `GET https://<your-domain>/api/me` returns `{"profile":null}` (means DB + session wiring is alive).
@@ -96,11 +89,10 @@ For the submission you need a 2-3 minute demo video. Recommended capture plan:
 
 ## Troubleshooting
 
-| Symptom                                               | Likely cause                                                                                    |
-| ----------------------------------------------------- | ----------------------------------------------------------------------------------------------- |
-| "No live BTC/ETH Event Contract is trading right now" | No qualifying market at that moment; try again a few minutes before the next 15-minute boundary |
-| Order rejected mentioning allowance                   | Approve USDso spending for the wallet in the DreamDEX app once                                  |
-| Avatar upload fails                                   | `avatars` bucket missing or not public-read                                                     |
-| Cron returns 401                                      | `CRON_SECRET` mismatch between Vercel env and the request                                       |
-| Rounds stuck in TRADING forever                       | Processor not running (cron not on Pro plan) or `CRON_SECRET` not set in Vercel                 |
-| Leaderboard empty                                     | No arenas have reached COMPLETED yet; it fills after the first full tournament settles          |
+| Symptom                                               | Likely cause                                                                                       |
+| ----------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
+| "No live BTC/ETH Event Contract is trading right now" | No qualifying market at that moment; try again a few minutes before the next 15-minute boundary    |
+| Order rejected mentioning allowance                   | Approve USDso spending for the wallet in the DreamDEX app once                                     |
+| Avatar upload fails                                   | `avatars` bucket missing or not public-read                                                        |
+| Rounds look stale after a browser was closed          | Open the arena, round, result, or final page while signed in; the first data request reconciles it |
+| Leaderboard empty                                     | No arenas have reached COMPLETED yet; it fills after the first full tournament settles             |

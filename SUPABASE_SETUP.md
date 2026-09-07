@@ -59,7 +59,6 @@ Add the server variables to Vercel without the `PUBLIC_` prefix exposed to the b
 - `SUPABASE_URL`
 - `SUPABASE_SERVICE_ROLE_KEY`
 - `SUPABASE_AVATARS_BUCKET`
-- `CRON_SECRET`
 
 Add these public variables for the browser bundle and Presence connection:
 
@@ -78,7 +77,7 @@ Use the same values for Preview and Production only when both environments inten
 4. Confirm the browser receives an `Online` Presence status when the public Supabase variables are configured.
 5. Confirm leaderboard and completed-arena requests return data after the migration has been applied.
 
-Vercel Pro invokes `/api/cron/process-rounds` every minute from [vercel.json](./vercel.json). Set `CRON_SECRET` in the Vercel project; Vercel sends it as a bearer token when invoking the scheduled route.
+Arena reads reconcile persisted schedule data with live DreamDEX state on demand. No scheduler or Vercel Cron configuration is required.
 
 To find avatar upload validation visit [src/routes/api/profile/avatar/+server.ts](file:///C:/Hackathons/DreamDEX/frontend/src/routes/api/profile/avatar/+server.ts).
 
