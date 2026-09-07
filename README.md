@@ -4,6 +4,8 @@ Market Rivals is a SvelteKit application for competitive, multi-round BTC and ET
 
 ## Quickstart (End To End)
 
+The complete setup walkthrough — Supabase, environment, wallets, local test, and Vercel deploy — is in [DEPLOY_CHECKLIST.md](./DEPLOY_CHECKLIST.md). Short version:
+
 1. Install dependencies:
 
 ```sh
