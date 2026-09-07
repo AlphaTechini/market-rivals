@@ -46,7 +46,7 @@ The DreamDEX testnet defaults are already live endpoints; you do not need to cha
    - Faucet: <https://testnet.somnia.network/>
    - Alternatives: Google Cloud faucet, Stakely, Thirdweb (see Somnia docs).
 4. Get test **USDso** (the Event Contracts quote token) on Shannon. The main `dreamdex.io` app defaults to mainnet, so use the documented testnet paths instead:
-   - Open the DreamDEX app with your wallet on the Somnia testnet (chain `50312`) and visit the hidden faucet page `/simple/debug` (type the path manually; no nav link). It mints test USDso (plus WETH/WBTC) to the connected wallet. Do this for **both** wallets.
+   - Open `https://app.dreamdex.io/simple/debug` (hidden faucet page; no nav link — type the path manually). Note the app lives at `app.dreamdex.io`, not the `dreamdex.io` landing host, and it must be on the Somnia testnet (chain `50312`). The page mints test USDso (plus WETH/WBTC) to the connected wallet. Do this for **both** wallets, and confirm the USDso arrives at your actual wallet address, not a Privy smart-wallet address.
    - Fallback: mint test SOMI/WBTC/WETH from the faucet contract `0x89Ebc05dE83aB9752B95030218BB10A542b96B7C` via `requestTokens(address[] tokens, uint256[] amounts)`, then swap into USDso with Simple Swap on testnet. Testnet books can be thin, so start from the most active pair.
 5. If your first order fails with an approval error, approve USDso spending for the venue once in the DreamDEX app; the SDK order flow assumes the venue is approved.
 
