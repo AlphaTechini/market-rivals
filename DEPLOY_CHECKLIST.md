@@ -7,7 +7,7 @@ Everything needed to take Market Rivals from a clean clone to a working end-to-e
 1. Create a project at [supabase.com](https://supabase.com) (any region close to you).
 2. Create a Storage bucket named `avatars` and make it **public** (read). Profile avatar uploads go here.
 3. Enable Realtime (used for the `Online` presence pill). Default settings are fine.
-4. Apply the database migrations. From the project root with your `DATABASE_URL` set (step 2):
+4. Apply the database migrations. The remote project used for development has already had all three migrations applied through the Supabase MCP (`0000_jittery_the_twelve`, `0001_special_rhino`, `0002_square_chronomancer`). Only run the command below against a brand-new database:
 
 ```sh
 pnpm db:migrate
