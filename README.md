@@ -35,7 +35,7 @@ pnpm dev
 5. To test, you need a Somnia Shannon testnet wallet:
 
 - Install an EVM wallet (MetaMask or similar) and add the Somnia Testnet network (chain ID `50312`, RPC `https://api.infra.testnet.somnia.network`, explorer `https://shannon-explorer.somnia.network`).
-- Get test STT from the Somnia faucet at `https://testnet.somnia.network/` and swap for USDso through DreamDEX so your wallet can pay for Event Contract orders.
+- Get test STT for gas from the Somnia faucet at `https://testnet.somnia.network/`, then request test USDso for Event Contract orders through the official hackathon Telegram at `https://t.me/+XHq0F0JXMyhmMzM0`.
 - Connect the wallet on the landing page, create a profile, create an arena, join with a second wallet, and make your picks during each live round.
 
 Arena pages reconcile round lifecycle on demand. When a signed-in player opens an arena, the server reads the stored schedule and current DreamDEX market state, then applies any due transitions idempotently.

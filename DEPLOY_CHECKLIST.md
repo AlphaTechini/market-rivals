@@ -45,10 +45,7 @@ The DreamDEX testnet defaults are already live endpoints; you do not need to cha
 3. Fund each wallet with test STT:
    - Faucet: <https://testnet.somnia.network/>
    - Alternatives: Google Cloud faucet, Stakely, Thirdweb (see Somnia docs).
-4. Get test **USDso** (the Event Contracts quote token) on Shannon. The main `dreamdex.io` app defaults to mainnet, so use the documented testnet paths instead:
-   - Open `https://app.dreamdex.io/simple/debug` (hidden faucet page; no nav link — type the path manually). Note the app lives at `app.dreamdex.io`, not the `dreamdex.io` landing host, and it must be on the Somnia testnet (chain `50312`). The page mints test USDso (plus WETH/WBTC) to the connected wallet. Do this for **both** wallets, and confirm the USDso arrives at your actual wallet address, not a Privy smart-wallet address.
-   - Fallback: mint test SOMI/WBTC/WETH from the faucet contract `0x89Ebc05dE83aB9752B95030218BB10A542b96B7C` via `requestTokens(address[] tokens, uint256[] amounts)`, then swap into USDso with Simple Swap on testnet. Testnet books can be thin, so start from the most active pair.
-5. If your first order fails with an approval error, approve USDso spending for the venue once in the DreamDEX app; the SDK order flow assumes the venue is approved.
+4. Request test **USDso** (the Event Contracts quote token) through the official hackathon Telegram at `https://t.me/+XHq0F0JXMyhmMzM0`. Include each Somnia Shannon wallet address; do this for **both** wallets. Do not attempt to fund the testnet account through the mainnet `dreamdex.io` app.
 
 ## 4. Local end-to-end test
 
@@ -94,7 +91,6 @@ For the submission you need a 2-3 minute demo video. Recommended capture plan:
 | Symptom                                               | Likely cause                                                                                       |
 | ----------------------------------------------------- | -------------------------------------------------------------------------------------------------- |
 | "No live BTC/ETH Event Contract is trading right now" | No qualifying market at that moment; try again a few minutes before the next 15-minute boundary    |
-| Order rejected mentioning allowance                   | Approve USDso spending for the wallet in the DreamDEX app once                                     |
 | Avatar upload fails                                   | `avatars` bucket missing or not public-read                                                        |
 | Rounds look stale after a browser was closed          | Open the arena, round, result, or final page while signed in; the first data request reconciles it |
 | Leaderboard empty                                     | No arenas have reached COMPLETED yet; it fills after the first full tournament settles             |
