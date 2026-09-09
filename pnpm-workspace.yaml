@@ -1,6 +1,9 @@
 allowBuilds:
   esbuild: true
 
+minimumReleaseAgeExclude:
+  - mediabunny@1.56.1
+
 overrides:
   '@esbuild-kit/core-utils>esbuild': 0.25.12
   '@esbuild-kit/esm-loader>esbuild': 0.25.12

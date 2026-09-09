@@ -46,6 +46,8 @@
 	"dependencies": {
 		"@somnia-chain/markets-sdk": "0.28.1",
 		"@supabase/supabase-js": "2.112.4",
+		"mediabunny": "1.56.1",
+		"modern-gif": "2.1.0",
 		"viem": "^2.56.1"
 	}
 }
