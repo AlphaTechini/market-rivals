@@ -60,6 +60,8 @@ export async function GET(event) {
 			selectedSide: 'UP' | 'DOWN';
 			status: string;
 			roundScore: string | null;
+			averageFillPrice: string | null;
+			filledQuantity: string | null;
 			changed: boolean;
 		}>;
 	};
@@ -83,6 +85,8 @@ export async function GET(event) {
 				selectedSide: pick.selectedSide,
 				status: pick.status,
 				roundScore: pick.roundScore,
+				averageFillPrice: pick.averageFillPrice,
+				filledQuantity: pick.filledQuantity,
 				changed: pick.changedAt !== null
 			});
 		}

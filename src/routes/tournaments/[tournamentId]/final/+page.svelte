@@ -4,6 +4,7 @@
 	import { onMount } from 'svelte';
 	import Avatar from '$lib/market-rivals/Avatar.svelte';
 	import BrandHeader from '$lib/market-rivals/BrandHeader.svelte';
+	import MatchFilmCard from '$lib/match-film/MatchFilmCard.svelte';
 	import PlayerName from '$lib/market-rivals/PlayerName.svelte';
 	import ShareResultsModal from '$lib/market-rivals/ShareResultsModal.svelte';
 	import {
@@ -210,6 +211,10 @@
 				</div>
 				<p class="fine" style="margin-top: 10px">* changed pick after first confirmation.</p>
 			</div>
+		{/if}
+
+		{#if summary && summary.rounds.length > 0}
+			<MatchFilmCard {summary} {rivalries} />
 		{/if}
 
 		{#if loading}<p class="fine">Loading final standings...</p>{/if}

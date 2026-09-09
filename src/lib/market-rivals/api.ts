@@ -45,6 +45,8 @@ export type ArenaRoundResult = {
 		selectedSide: 'UP' | 'DOWN';
 		status: string;
 		roundScore: string | null;
+		averageFillPrice?: string | null;
+		filledQuantity?: string | null;
 		changed: boolean;
 	}>;
 };
