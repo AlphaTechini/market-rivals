@@ -32,10 +32,12 @@ export async function buildMatchFilmData(
 	viewerProfileId: string | null,
 	rivalry: RivalryRecord | null
 ): Promise<MatchFilmData> {
-	const viewerParticipant = viewerProfileId
+	// the film needs a protagonist: the viewer when they played, otherwise
+	// the champion (shared links are opened by strangers)
+	const protagonist = viewerProfileId
 		? (summary.participants.find((participant) => participant.profile.id === viewerProfileId) ??
-			null)
-		: null;
+			summary.participants[0])
+		: summary.participants[0];
 
 	const players = await Promise.all(
 		[...summary.participants]
@@ -51,8 +53,8 @@ export async function buildMatchFilmData(
 	);
 
 	const rounds: MatchFilmRound[] = summary.rounds.map((round) => {
-		const pick = viewerParticipant
-			? round.picks.find((entry) => entry.participantId === viewerParticipant.participantId)
+		const pick = protagonist
+			? round.picks.find((entry) => entry.participantId === protagonist.participantId)
 			: undefined;
 		return {
 			number: round.roundNumber,

@@ -1,0 +1,153 @@
+-- Seeds one completed test arena so the Match Film can be tested and tuned
+-- without a live DreamDEX market. Fully reproducible: fixed UUIDs, past
+-- timestamps. Cleanup counterpart: unseed-match-film.sql (run only when the
+-- test data is no longer wanted).
+--
+-- Participant map (participant id -> profile):
+--   cc01 -> Ava  (0xa11ce...)  rank 1, total +114
+--   cc02 -> Host (0xd00d...)   rank 2, total   +5
+--   cc03 -> Milo (0xb0b...)    rank 3, total   -4
+--   cc04 -> Zoe  (0xc0ffee..) rank 4, total  -13
+--
+-- Score math follows the published rule: (settlementValue - avgFillPrice) x 100
+-- per contract, 10 contracts per pick, settlement 1 (win) / 0 (loss).
+
+begin;
+
+insert into profiles (id, wallet_address, display_name) values
+  ('00000000-0000-4000-8000-0000000000a1', '0xa11ce0000000000000000000000000000000a1', 'Reel Ava'),
+  ('00000000-0000-4000-8000-0000000000a2', '0xb0b0000000000000000000000000000000000a2', 'Reel Milo'),
+  ('00000000-0000-4000-8000-0000000000a3', '0xc0ffee000000000000000000000000000000a3', 'Reel Zoe'),
+  ('00000000-0000-4000-8000-0000000000a4', '0xd00d00000000000000000000000000000000a4', 'Reel Host')
+on conflict (id) do nothing;
+
+insert into arenas (id, name, host_profile_id, asset, access_type, invite_code, status,
+  round_count, contract_quantity, maximum_participants, round_interval_minutes, entry_fee,
+  start_at, description, completed_at) values
+  ('00000000-0000-4000-8000-00000000aa01', 'TEST - Match Film Reel',
+   '00000000-0000-4000-8000-0000000000a4', 'MIX', 'PUBLIC', 'reel-test-01', 'COMPLETED',
+   2, 10, 8, 15, 1.00000000,
+   now() - interval '2 hours', 'Seeded arena for testing the animated match film.',
+   now() - interval '100 minutes')
+on conflict (id) do nothing;
+
+insert into arena_participants (id, arena_id, profile_id, wallet_address, joined_at,
+  total_score, correct_rounds, missed_rounds, total_testnet_pnl, final_rank) values
+  ('00000000-0000-4000-8000-00000000cc01', '00000000-0000-4000-8000-00000000aa01',
+   '00000000-0000-4000-8000-0000000000a1', '0xa11ce0000000000000000000000000000000a1',
+   now() - interval '118 minutes', 114.00000000, 2, 0, 11.40000000000, 1),
+  ('00000000-0000-4000-8000-00000000cc02', '00000000-0000-4000-8000-00000000aa01',
+   '00000000-0000-4000-8000-0000000000a4', '0xd00d00000000000000000000000000000000a4',
+   now() - interval '117 minutes', 5.00000000, 1, 0, 0.50000000000, 2),
+  ('00000000-0000-4000-8000-00000000cc03', '00000000-0000-4000-8000-00000000aa01',
+   '00000000-0000-4000-8000-0000000000a2', '0xb0b0000000000000000000000000000000000a2',
+   now() - interval '116 minutes', -4.00000000, 1, 0, -0.40000000000, 3),
+  ('00000000-0000-4000-8000-00000000cc04', '00000000-0000-4000-8000-00000000aa01',
+   '00000000-0000-4000-8000-0000000000a3', '0xc0ffee000000000000000000000000000000a3',
+   now() - interval '115 minutes', -13.00000000, 1, 0, -1.30000000000, 4)
+on conflict (id) do nothing;
+
+insert into arena_rounds (id, arena_id, round_number, asset, dreamdex_market_id, market_symbol,
+  market_expires_at, opening_price, closing_price, opens_at, locks_at, settles_at,
+  winning_side, status) values
+  ('00000000-0000-4000-8000-00000000bb01', '00000000-0000-4000-8000-00000000aa01',
+   1, 'BTC', '0xseed0000000000000000000000000000000000000000000000000000000b1',
+   'BTC up or down - seeded window 1',
+   now() - interval '105 minutes', 67421.500000000000000000, 67510.250000000000000000,
+   now() - interval '120 minutes', now() - interval '114 minutes', now() - interval '102 minutes',
+   'UP', 'SETTLED'),
+  ('00000000-0000-4000-8000-00000000bb02', '00000000-0000-4000-8000-00000000aa01',
+   2, 'ETH', '0xseed0000000000000000000000000000000000000000000000000000000b2',
+   'ETH up or down - seeded window 2',
+   now() - interval '105 minutes', 3142.800000000000000000, 3128.400000000000000000,
+   now() - interval '113 minutes', now() - interval '107 minutes', now() - interval '102 minutes',
+   'DOWN', 'SETTLED')
+on conflict (id) do nothing;
+
+-- Round 1 (BTC settled UP): Ava +58, Host +52, Zoe +39, Milo -55.
+insert into arena_picks (id, arena_id, round_id, participant_id, wallet_address, selected_side,
+  initial_side, initial_submitted_at, initial_transaction_hash, changed_at,
+  order_transaction_hash, average_fill_price, filled_quantity, actual_cost,
+  settlement_value, round_score, actual_testnet_pnl, submitted_at, verified_at, status) values
+  ('00000000-0000-4000-8000-00000000dd01', '00000000-0000-4000-8000-00000000aa01',
+   '00000000-0000-4000-8000-00000000bb01', '00000000-0000-4000-8000-00000000cc01',
+   '0xa11ce0000000000000000000000000000000a1', 'UP', 'UP',
+   now() - interval '119 minutes', '0x1111111111111111111111111111111111111111111111111111111111111111', null,
+   '0x1111111111111111111111111111111111111111111111111111111111111111',
+   0.420000000000000000, 10.000000000000000000, 4.200000000000000000,
+   10.000000000000000000, 58.00000000, 5.800000000000000000,
+   now() - interval '119 minutes', now() - interval '119 minutes', 'CONFIRMED'),
+  ('00000000-0000-4000-8000-00000000dd02', '00000000-0000-4000-8000-00000000aa01',
+   '00000000-0000-4000-8000-00000000bb01', '00000000-0000-4000-8000-00000000cc02',
+   '0xd00d00000000000000000000000000000000a4', 'UP', 'UP',
+   now() - interval '118 minutes', '0x2222222222222222222222222222222222222222222222222222222222222222', null,
+   '0x2222222222222222222222222222222222222222222222222222222222222222',
+   0.480000000000000000, 10.000000000000000000, 4.800000000000000000,
+   10.000000000000000000, 52.00000000, 5.200000000000000000,
+   now() - interval '118 minutes', now() - interval '118 minutes', 'CONFIRMED'),
+  ('00000000-0000-4000-8000-00000000dd03', '00000000-0000-4000-8000-00000000aa01',
+   '00000000-0000-4000-8000-00000000bb01', '00000000-0000-4000-8000-00000000cc04',
+   '0xc0ffee000000000000000000000000000000a3', 'UP', 'UP',
+   now() - interval '117 minutes', '0x3333333333333333333333333333333333333333333333333333333333333333', null,
+   '0x3333333333333333333333333333333333333333333333333333333333333333',
+   0.610000000000000000, 10.000000000000000000, 6.100000000000000000,
+   10.000000000000000000, 39.00000000, 3.900000000000000000,
+   now() - interval '117 minutes', now() - interval '117 minutes', 'CONFIRMED'),
+  ('00000000-0000-4000-8000-00000000dd04', '00000000-0000-4000-8000-00000000aa01',
+   '00000000-0000-4000-8000-00000000bb01', '00000000-0000-4000-8000-00000000cc03',
+   '0xb0b0000000000000000000000000000000000a2', 'DOWN', 'DOWN',
+   now() - interval '116 minutes', '0x4444444444444444444444444444444444444444444444444444444444444444', null,
+   '0x4444444444444444444444444444444444444444444444444444444444444444',
+   0.550000000000000000, 10.000000000000000000, 5.500000000000000000,
+   0.000000000000000000, -55.00000000, -5.500000000000000000,
+   now() - interval '116 minutes', now() - interval '116 minutes', 'CONFIRMED')
+on conflict (id) do nothing;
+
+-- Round 2 (ETH settled DOWN): Ava changed her pick (UP -> DOWN) and won +56,
+-- Milo +51, Zoe -52, Host -47.
+insert into arena_picks (id, arena_id, round_id, participant_id, wallet_address, selected_side,
+  initial_side, initial_submitted_at, initial_transaction_hash, changed_at,
+  order_transaction_hash, average_fill_price, filled_quantity, actual_cost,
+  settlement_value, round_score, actual_testnet_pnl, submitted_at, verified_at, status) values
+  ('00000000-0000-4000-8000-00000000dd05', '00000000-0000-4000-8000-00000000aa01',
+   '00000000-0000-4000-8000-00000000bb02', '00000000-0000-4000-8000-00000000cc01',
+   '0xa11ce0000000000000000000000000000000a1', 'DOWN', 'UP',
+   now() - interval '112 minutes', '0x5555555555555555555555555555555555555555555555555555555555555555',
+   now() - interval '110 minutes',
+   '0x6666666666666666666666666666666666666666666666666666666666666666',
+   0.440000000000000000, 10.000000000000000000, 4.400000000000000000,
+   10.000000000000000000, 56.00000000, 5.600000000000000000,
+   now() - interval '110 minutes', now() - interval '110 minutes', 'CONFIRMED'),
+  ('00000000-0000-4000-8000-00000000dd06', '00000000-0000-4000-8000-00000000aa01',
+   '00000000-0000-4000-8000-00000000bb02', '00000000-0000-4000-8000-00000000cc03',
+   '0xb0b0000000000000000000000000000000000a2', 'DOWN', 'DOWN',
+   now() - interval '111 minutes', '0x7777777777777777777777777777777777777777777777777777777777777777', null,
+   '0x7777777777777777777777777777777777777777777777777777777777777777',
+   0.490000000000000000, 10.000000000000000000, 4.900000000000000000,
+   10.000000000000000000, 51.00000000, 5.100000000000000000,
+   now() - interval '111 minutes', now() - interval '111 minutes', 'CONFIRMED'),
+  ('00000000-0000-4000-8000-00000000dd07', '00000000-0000-4000-8000-00000000aa01',
+   '00000000-0000-4000-8000-00000000bb02', '00000000-0000-4000-8000-00000000cc04',
+   '0xc0ffee000000000000000000000000000000a3', 'UP', 'UP',
+   now() - interval '110 minutes', '0x8888888888888888888888888888888888888888888888888888888888888888', null,
+   '0x8888888888888888888888888888888888888888888888888888888888888888',
+   0.520000000000000000, 10.000000000000000000, 5.200000000000000000,
+   0.000000000000000000, -52.00000000, -5.200000000000000000,
+   now() - interval '110 minutes', now() - interval '110 minutes', 'CONFIRMED'),
+  ('00000000-0000-4000-8000-00000000dd08', '00000000-0000-4000-8000-00000000aa01',
+   '00000000-0000-4000-8000-00000000bb02', '00000000-0000-4000-8000-00000000cc02',
+   '0xd00d00000000000000000000000000000000a4', 'UP', 'UP',
+   now() - interval '109 minutes', '0x9999999999999999999999999999999999999999999999999999999999999999', null,
+   '0x9999999999999999999999999999999999999999999999999999999999999999',
+   0.470000000000000000, 10.000000000000000000, 4.700000000000000000,
+   0.000000000000000000, -47.00000000, -4.700000000000000000,
+   now() - interval '109 minutes', now() - interval '109 minutes', 'CONFIRMED')
+on conflict (id) do nothing;
+
+insert into achievements (participant_id, arena_id, type, title, metadata) values
+  ('00000000-0000-4000-8000-00000000cc01', '00000000-0000-4000-8000-00000000aa01',
+   'WINNER', 'Arena Champion',
+   '{"seed": true, "rank": 1, "totalScore": "114"}'::jsonb)
+on conflict (participant_id, arena_id, type) do nothing;
+
+commit;
