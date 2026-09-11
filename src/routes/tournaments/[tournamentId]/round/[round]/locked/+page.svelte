@@ -15,6 +15,8 @@
 	let roundDetail = $state<RoundDetail | null>(null);
 	let loading = $state(true);
 	let error = $state('');
+	let now = $state(Date.now());
+	let lastDeadlineCheck = 0;
 	let arenaId = $derived(page.params.tournamentId);
 	let roundNumber = $derived(Number(page.params.round ?? '1'));
 	let settlementAt = $derived(
@@ -27,6 +29,23 @@
 	const pollMs = 15000;
 	let pollTimer: number | undefined;
 
+	async function checkRound() {
+		const id = arenaId;
+		if (!id || !isUuid(id)) return;
+		try {
+			const detail = await fetchRoundDetail(id, roundNumber);
+			roundDetail = detail;
+			if (detail.round.status === 'SETTLED' || detail.round.status === 'VOIDED') {
+				if (pollTimer) window.clearInterval(pollTimer);
+				await goto(resolve(...([`/tournaments/${id}/round/${roundNumber}/result`] as never)));
+			}
+		} catch (cause) {
+			error = cause instanceof Error ? cause.message : 'Round state could not be loaded.';
+		} finally {
+			loading = false;
+		}
+	}
+
 	onMount(async () => {
 		const id = arenaId;
 		if (!id || !isUuid(id)) {
@@ -35,26 +54,21 @@
 			return;
 		}
 
-		async function checkRound() {
-			if (!arenaId || !isUuid(arenaId)) return;
-			try {
-				const detail = await fetchRoundDetail(arenaId, roundNumber);
-				roundDetail = detail;
-				if (detail.round.status === 'SETTLED' || detail.round.status === 'VOIDED') {
-					if (pollTimer) window.clearInterval(pollTimer);
-					await goto(
-						resolve(...([`/tournaments/${arenaId!}/round/${roundNumber}/result`] as never))
-					);
-				}
-			} catch (cause) {
-				error = cause instanceof Error ? cause.message : 'Round state could not be loaded.';
-			} finally {
-				loading = false;
-			}
-		}
-
 		await checkRound();
 		pollTimer = window.setInterval(() => void checkRound(), pollMs);
+	});
+
+	onMount(() => {
+		const tick = window.setInterval(() => (now = Date.now()), 1_000);
+		return () => window.clearInterval(tick);
+	});
+
+	$effect(() => {
+		if (!settlementAt || !roundDetail) return;
+		if (now < new Date(settlementAt).getTime()) return;
+		if (Date.now() - lastDeadlineCheck < 5_000) return;
+		lastDeadlineCheck = Date.now();
+		void checkRound();
 	});
 
 	onDestroy(() => {

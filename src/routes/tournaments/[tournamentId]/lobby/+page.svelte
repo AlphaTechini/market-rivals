@@ -51,7 +51,17 @@
 
 	onMount(() => {
 		const interval = window.setInterval(() => (now = Date.now()), 1_000);
-		return () => window.clearInterval(interval);
+		const refresh = window.setInterval(() => {
+			const id = tournamentId;
+			if (!id || !isUuid(id) || joining) return;
+			void fetchArenaSummary(id)
+				.then((fresh) => (summary = fresh))
+				.catch(() => undefined);
+		}, 15_000);
+		return () => {
+			window.clearInterval(interval);
+			window.clearInterval(refresh);
+		};
 	});
 
 	async function joinCurrentArena() {
@@ -88,10 +98,9 @@
 	let firstRoundJoinDeadline = $derived.by(() => {
 		const firstRound = summary?.rounds.find((round) => round.roundNumber === 1);
 		if (!firstRound) return null;
-		return (
-			new Date(firstRound.marketExpiresAt ?? firstRound.locksAt).getTime() -
-			(firstRound.marketExpiresAt ? 60_000 : 0)
-		);
+		const locksAt = new Date(firstRound.locksAt).getTime();
+		if (!firstRound.marketExpiresAt) return locksAt;
+		return Math.min(locksAt, new Date(firstRound.marketExpiresAt).getTime() - 60_000);
 	});
 	let acceptsPlayers = $derived(
 		summary?.arena.status === 'JOINING' ||

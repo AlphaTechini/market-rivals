@@ -1,7 +1,7 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
 	import { page } from '$app/state';
-	import { onMount } from 'svelte';
+	import { onDestroy, onMount } from 'svelte';
 	import BrandHeader from '$lib/market-rivals/BrandHeader.svelte';
 	import PlayerName from '$lib/market-rivals/PlayerName.svelte';
 	import {
@@ -18,6 +18,7 @@
 	let tiedRival = $state<RivalryRecord | null>(null);
 	let loading = $state(true);
 	let error = $state('');
+	let pollTimer: number | undefined;
 	let arenaId = $derived(page.params.tournamentId);
 	let roundNumber = $derived(Number(page.params.round ?? '1'));
 	let nextRound = $derived(roundNumber + 1);
@@ -39,6 +40,23 @@
 		} finally {
 			loading = false;
 		}
+
+		pollTimer = window.setInterval(() => {
+			const currentId = arenaId;
+			if (!currentId || !isUuid(currentId)) return;
+			void fetchRoundDetail(currentId, roundNumber)
+				.then((detail) => {
+					roundDetail = detail;
+					if (detail.round.status === 'SETTLED' || detail.round.status === 'VOIDED') {
+						if (pollTimer) window.clearInterval(pollTimer);
+					}
+				})
+				.catch(() => undefined);
+		}, 10_000);
+	});
+
+	onDestroy(() => {
+		if (pollTimer) window.clearInterval(pollTimer);
 	});
 
 	let isVoid = $derived(roundDetail?.round.status === 'VOIDED');

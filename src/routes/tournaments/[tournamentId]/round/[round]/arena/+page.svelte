@@ -32,6 +32,8 @@
 	let arenaId = $derived(page.params.tournamentId);
 	let roundNumber = $derived(Number(page.params.round ?? '1'));
 	let validArenaId = $derived(Boolean(arenaId && isUuid(arenaId)));
+	let now = $state(Date.now());
+	let advancedAtDeadline = $state(false);
 
 	onMount(async () => {
 		try {
@@ -66,6 +68,11 @@
 
 	onDestroy(() => {
 		if (trade) void trade.exchange.close();
+	});
+
+	onMount(() => {
+		const interval = window.setInterval(() => (now = Date.now()), 1_000);
+		return () => window.clearInterval(interval);
 	});
 
 	async function refreshRound() {
@@ -133,8 +140,20 @@
 
 	let myPick = $derived(roundDetail?.myPick ?? null);
 	let votesClosed = $derived(
-		Boolean(roundDetail && Date.now() >= new Date(roundDetail.pickDeadline).getTime())
+		Boolean(roundDetail && now >= new Date(roundDetail.pickDeadline).getTime())
 	);
+
+	$effect(() => {
+		const id = arenaId;
+		if (!id || !isUuid(id) || !roundDetail || advancedAtDeadline) return;
+		if (submitting || confirmingSide) return;
+		if (now < new Date(roundDetail.pickDeadline).getTime()) return;
+		advancedAtDeadline = true;
+		void (async () => {
+			await refreshRound();
+			await goto(resolve(...([`/tournaments/${id}/round/${roundNumber}/locked`] as never)));
+		})();
+	});
 	let picksOpen = $derived.by(() => {
 		if (!roundDetail || votesClosed) return false;
 		if (!myPick || myPick.status !== 'CONFIRMED') return true;

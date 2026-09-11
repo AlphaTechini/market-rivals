@@ -33,6 +33,15 @@
 		}
 	});
 
+	onMount(() => {
+		const interval = window.setInterval(() => {
+			void fetchLiveArenas()
+				.then((fresh) => (arenas = fresh))
+				.catch(() => undefined);
+		}, 20_000);
+		return () => window.clearInterval(interval);
+	});
+
 	let filtered = $derived.by(() => {
 		const needle = search.trim().toLowerCase();
 		return arenas
