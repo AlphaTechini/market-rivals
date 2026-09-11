@@ -26,6 +26,11 @@
 		profileSetupOpen = false;
 		await goto(resolve('/dashboard'));
 	}
+
+	async function finishSignIn() {
+		profileSetupOpen = false;
+		await goto(resolve('/dashboard'));
+	}
 </script>
 
 <svelte:head>
@@ -115,4 +120,5 @@
 	open={profileSetupOpen}
 	onClose={() => (profileSetupOpen = false)}
 	onComplete={finishProfileSetup}
+	onSignedIn={finishSignIn}
 />

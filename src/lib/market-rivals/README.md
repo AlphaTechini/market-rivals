@@ -10,6 +10,10 @@ This module ports the static Silver Arena prototype into reusable Svelte compone
 
 To find shared branding and header logic visit [BrandHeader.svelte](./BrandHeader.svelte).
 
+To find the wallet sign-in and first-time profile setup flow visit [ProfileSetupModal.svelte](./ProfileSetupModal.svelte). Returning wallets sign in with one signature; only unknown wallets see the name and avatar form.
+
+To find the wallet challenge, sign-in, and signup API calls visit [api.ts](./api.ts).
+
 To find reusable tournament card logic visit [TournamentCard.svelte](./TournamentCard.svelte).
 
 To find invite copy and social-share actions visit [ShareActions.svelte](./ShareActions.svelte).

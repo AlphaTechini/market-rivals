@@ -5,6 +5,7 @@
 		rememberWallet,
 		type WalletProviderOption
 	} from '$lib/dreamdex/wallet-provider';
+	import { beginWalletAuth, completeWalletSignIn } from './api';
 
 	export type ProfileDraft = {
 		displayName: string;
@@ -16,10 +17,11 @@
 		open: boolean;
 		onClose: () => void;
 		onComplete: (profile: ProfileDraft) => void;
+		onSignedIn: () => void;
 	};
 
-	let { open, onClose, onComplete }: Props = $props();
-	let step = $state<'profile' | 'wallet'>('profile');
+	let { open, onClose, onComplete, onSignedIn }: Props = $props();
+	let step = $state<'wallet' | 'profile'>('wallet');
 	let displayName = $state('');
 	let avatarFile = $state<File | null>(null);
 	let avatarUrl = $state('');
@@ -30,8 +32,24 @@
 	let loadingWallets = $state(false);
 	let showWalletPicker = $state(true);
 
+	$effect(() => {
+		if (!open || step !== 'wallet' || wallets.length || loadingWallets) return;
+		loadingWallets = true;
+		void discoverWalletProviders()
+			.then((found) => {
+				wallets = found;
+				selectedWallet = preferredWallet(found);
+				showWalletPicker = !selectedWallet;
+				if (!found.length) error = 'Install an EVM wallet extension to continue.';
+			})
+			.catch((cause) => {
+				error = cause instanceof Error ? cause.message : 'Wallet discovery failed.';
+			})
+			.finally(() => (loadingWallets = false));
+	});
+
 	function reset() {
-		step = 'profile';
+		step = 'wallet';
 		displayName = '';
 		avatarFile = null;
 		avatarUrl = '';
@@ -63,28 +81,6 @@
 		error = '';
 	}
 
-	async function continueToWallet(event: SubmitEvent) {
-		event.preventDefault();
-		if (!displayName.trim() || !avatarFile) {
-			error = 'Enter your name and attach a profile picture to continue.';
-			return;
-		}
-
-		error = '';
-		step = 'wallet';
-		loadingWallets = true;
-		try {
-			wallets = await discoverWalletProviders();
-			selectedWallet = preferredWallet(wallets);
-			showWalletPicker = !selectedWallet;
-			if (!wallets.length) error = 'Install an EVM wallet extension to continue.';
-		} catch (cause) {
-			error = cause instanceof Error ? cause.message : 'Wallet discovery failed.';
-		} finally {
-			loadingWallets = false;
-		}
-	}
-
 	function chooseWallet(wallet: WalletProviderOption) {
 		rememberWallet(wallet);
 		selectedWallet = wallet;
@@ -92,15 +88,43 @@
 		error = '';
 	}
 
-	async function connectWallet() {
-		if (!avatarFile || !displayName.trim()) return;
+	async function signIn() {
 		connecting = true;
 		error = '';
 		try {
-			await onComplete({ displayName: displayName.trim(), avatarFile, avatarUrl });
+			const auth = await beginWalletAuth();
+			if (auth.hasAccount) {
+				await completeWalletSignIn(auth.account, auth.message);
+				reset();
+				onSignedIn();
+			} else {
+				connecting = false;
+				step = 'profile';
+			}
+		} catch (cause) {
+			error = cause instanceof Error ? cause.message : 'Wallet sign-in failed.';
+			connecting = false;
+		}
+	}
+
+	async function createAccount(event: SubmitEvent) {
+		event.preventDefault();
+		if (!displayName.trim() || !avatarFile) {
+			error = 'Enter your name and attach a profile picture to continue.';
+			return;
+		}
+
+		connecting = true;
+		error = '';
+		try {
+			await onComplete({
+				displayName: displayName.trim(),
+				avatarFile,
+				avatarUrl
+			});
 			reset();
 		} catch (cause) {
-			error = cause instanceof Error ? cause.message : 'Wallet connection failed.';
+			error = cause instanceof Error ? cause.message : 'Account creation failed.';
 			connecting = false;
 		}
 	}
@@ -115,50 +139,17 @@
 		<dialog open class="modal" aria-labelledby="profile-title">
 			<div class="modal-header">
 				<div>
-					<div class="eyebrow">Before you enter</div>
-					<h2 id="profile-title">Set up your profile</h2>
+					<div class="eyebrow">{step === 'profile' ? 'New wallet' : 'Welcome back'}</div>
+					<h2 id="profile-title">{step === 'profile' ? 'Set up your profile' : 'Sign in'}</h2>
 				</div>
 				<button class="modal-close" type="button" aria-label="Close" onclick={close}>×</button>
 			</div>
 
-			{#if step === 'profile'}
-				<form onsubmit={continueToWallet}>
-					<div class="profile-upload">
-						{#if avatarUrl}
-							<img class="profile-avatar large" src={avatarUrl} alt="Profile preview" />
-						{:else}
-							<span class="profile-avatar large">?</span>
-						{/if}
-						<label class="btn" for="profile-picture">Attach picture</label>
-						<input
-							id="profile-picture"
-							class="file-input"
-							type="file"
-							accept="image/*"
-							onchange={selectAvatar}
-						/>
-					</div>
-					<div class="field">
-						<label for="display-name">Your name</label>
-						<input
-							id="display-name"
-							autocomplete="name"
-							bind:value={displayName}
-							placeholder="How rivals will see you"
-						/>
-					</div>
-					{#if error}<p class="form-error">{error}</p>{/if}
-					<button class="btn primary full" type="submit">Continue to wallet</button>
-				</form>
-			{:else}
+			{#if step === 'wallet'}
 				<div class="wallet-step">
-					<div class="profile-summary">
-						<img class="profile-avatar medium" src={avatarUrl} alt="Profile preview" />
-						<div><strong>{displayName}</strong><span class="status-text">Profile ready</span></div>
-					</div>
 					<p class="sub">
-						Connect your wallet to sign DreamDEX testnet positions. Your private key never leaves
-						your wallet.
+						Connect your wallet to sign back in with your existing account. New wallets set up a
+						profile after connecting.
 					</p>
 					{#if loadingWallets}
 						<p class="fine">Finding installed wallets...</p>
@@ -184,14 +175,45 @@
 						class="btn primary full"
 						type="button"
 						disabled={connecting || loadingWallets || showWalletPicker || !selectedWallet}
-						onclick={connectWallet}
+						onclick={signIn}
 					>
-						{connecting ? 'Connecting...' : 'Connect wallet'}
+						{connecting ? 'Signing in...' : 'Sign In'}
 					</button>
-					<button class="btn ghost full" type="button" onclick={() => (step = 'profile')}
-						>Back to profile</button
-					>
 				</div>
+			{:else}
+				<form onsubmit={createAccount}>
+					<div class="profile-upload">
+						{#if avatarUrl}
+							<img class="profile-avatar large" src={avatarUrl} alt="Profile preview" />
+						{:else}
+							<span class="profile-avatar large">?</span>
+						{/if}
+						<label class="btn" for="profile-picture">Attach picture</label>
+						<input
+							id="profile-picture"
+							class="file-input"
+							type="file"
+							accept="image/*"
+							onchange={selectAvatar}
+						/>
+					</div>
+					<div class="field">
+						<label for="display-name">Your name</label>
+						<input
+							id="display-name"
+							autocomplete="name"
+							bind:value={displayName}
+							placeholder="How rivals will see you"
+						/>
+					</div>
+					{#if error}<p class="form-error">{error}</p>{/if}
+					<button class="btn primary full" type="submit" disabled={connecting}
+						>{connecting ? 'Creating account...' : 'Create account'}</button
+					>
+					<button class="btn ghost full" type="button" onclick={() => (step = 'wallet')}
+						>Back to wallet</button
+					>
+				</form>
 			{/if}
 		</dialog>
 	</div>

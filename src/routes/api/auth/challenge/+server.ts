@@ -1,9 +1,10 @@
 import { randomBytes } from 'node:crypto';
+import { eq } from 'drizzle-orm';
 import { json } from '@sveltejs/kit';
 import { isAddress, getAddress } from 'viem';
 import { readJson, stringField } from '$lib/server/http';
 import { getDb } from '$lib/server/db';
-import { walletChallenges } from '$lib/server/db/schema';
+import { profiles, walletChallenges } from '$lib/server/db/schema';
 
 export async function POST({ request }) {
 	const body = await readJson(request);
@@ -31,5 +32,15 @@ export async function POST({ request }) {
 			set: { nonce, message, expiresAt, createdAt: new Date() }
 		});
 
-	return json({ message, expiresAt: expiresAt.toISOString() });
+	const [existing] = await getDb()
+		.select({ id: profiles.id })
+		.from(profiles)
+		.where(eq(profiles.walletAddress, address.toLowerCase()))
+		.limit(1);
+
+	return json({
+		message,
+		expiresAt: expiresAt.toISOString(),
+		hasAccount: Boolean(existing)
+	});
 }

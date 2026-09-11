@@ -45,11 +45,11 @@
 			<a href={resolve('/#why')}>Why compete</a>
 			{#if onConnect}
 				<button class="btn primary" type="button" onclick={onConnect}>
-					{profile ? shortWallet : 'Connect wallet'}
+					{profile ? shortWallet : 'Sign In'}
 				</button>
 			{:else}
 				<a class="btn primary" href={resolve(profile ? '/dashboard' : '/')}>
-					{profile ? shortWallet : 'Connect wallet'}
+					{profile ? shortWallet : 'Sign In'}
 				</a>
 			{/if}
 		</nav>
@@ -62,7 +62,7 @@
 			{#if profile}
 				<span class="pill" title={profile.walletAddress}>{profile.displayName}</span>
 			{:else}
-				<a class="btn" href={resolve('/')}>Connect</a>
+				<a class="btn" href={resolve('/')}>Sign In</a>
 			{/if}
 		</div>
 	{/if}

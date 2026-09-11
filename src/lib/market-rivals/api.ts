@@ -295,25 +295,49 @@ export async function createArena(input: {
 	});
 }
 
-export async function authenticateWithWallet(profile: ProfileDraft): Promise<void> {
+async function connectedWalletClient() {
 	const provider = await selectedWalletProvider();
-	const walletClient = createWalletClient({ chain: somniaShannon, transport: custom(provider) });
+	return createWalletClient({ chain: somniaShannon, transport: custom(provider) });
+}
+
+export async function beginWalletAuth(): Promise<{
+	account: Address;
+	message: string;
+	hasAccount: boolean;
+}> {
+	const walletClient = await connectedWalletClient();
 	const [account] = await walletClient.requestAddresses();
 	if (!account) throw new Error('No wallet account was selected.');
 
-	const challenge = await request<{ message: string }>('/api/auth/challenge', {
+	const challenge = await request<{ message: string; hasAccount: boolean }>('/api/auth/challenge', {
 		method: 'POST',
 		headers: { 'content-type': 'application/json' },
 		body: JSON.stringify({ walletAddress: account })
 	});
-	const signature = await walletClient.signMessage({ account, message: challenge.message });
+	return { account, message: challenge.message, hasAccount: challenge.hasAccount };
+}
+
+export async function completeWalletSignIn(account: Address, message: string): Promise<void> {
+	const walletClient = await connectedWalletClient();
+	const signature = await walletClient.signMessage({ account, message });
+	await request('/api/auth/verify', {
+		method: 'POST',
+		headers: { 'content-type': 'application/json' },
+		body: JSON.stringify({ walletAddress: account, message, signature })
+	});
+}
+
+export async function authenticateWithWallet(profile: ProfileDraft): Promise<void> {
+	const { account, message } = await beginWalletAuth();
+	const walletClient = await connectedWalletClient();
+	const signature = await walletClient.signMessage({ account, message });
 
 	await request('/api/auth/verify', {
 		method: 'POST',
 		headers: { 'content-type': 'application/json' },
 		body: JSON.stringify({
 			walletAddress: account,
-			message: challenge.message,
+			message,
 			signature,
 			displayName: profile.displayName
 		})

@@ -19,7 +19,7 @@ export async function POST(event) {
 			{ status: 400 }
 		);
 	}
-	if (!displayName || displayName.length < 2 || displayName.length > 40) {
+	if (displayName !== null && (displayName.length < 2 || displayName.length > 40)) {
 		return json({ error: 'Display name must be between 2 and 40 characters.' }, { status: 400 });
 	}
 
@@ -38,23 +38,36 @@ export async function POST(event) {
 	const valid = await verifyMessage({ address, message, signature });
 	if (!valid) return json({ error: 'Wallet signature verification failed.' }, { status: 401 });
 
-	await db
-		.insert(profiles)
-		.values({ walletAddress: address.toLowerCase(), displayName })
-		.onConflictDoUpdate({
-			target: profiles.walletAddress,
-			set: { displayName, updatedAt: new Date() }
-		});
+	const walletAddressLower = address.toLowerCase();
+	const [existingProfile] = await db
+		.select()
+		.from(profiles)
+		.where(eq(profiles.walletAddress, walletAddressLower))
+		.limit(1);
+	if (!existingProfile && !displayName) {
+		return json(
+			{ error: 'No account exists for this wallet yet. Set up a profile first.' },
+			{ status: 404 }
+		);
+	}
+
+	if (displayName !== null) {
+		await db
+			.insert(profiles)
+			.values({ walletAddress: walletAddressLower, displayName })
+			.onConflictDoUpdate({
+				target: profiles.walletAddress,
+				set: { displayName, updatedAt: new Date() }
+			});
+	}
 
 	const [profile] = await db
 		.select()
 		.from(profiles)
-		.where(eq(profiles.walletAddress, address.toLowerCase()))
+		.where(eq(profiles.walletAddress, walletAddressLower))
 		.limit(1);
 	if (!profile) return json({ error: 'Profile could not be created.' }, { status: 500 });
-	await db
-		.delete(walletChallenges)
-		.where(eq(walletChallenges.walletAddress, address.toLowerCase()));
+	await db.delete(walletChallenges).where(eq(walletChallenges.walletAddress, walletAddressLower));
 
 	const token = createSessionToken();
 	await saveSession(event, profile.id, token);
