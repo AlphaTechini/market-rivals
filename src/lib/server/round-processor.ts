@@ -8,6 +8,7 @@ import type {
 } from '@somnia-chain/markets-sdk';
 import { createDreamdexExchange } from '$lib/dreamdex/config';
 import { getDb } from '$lib/server/db';
+import { roundPickDeadline } from '$lib/server/round-timing';
 import { calculateRoundScore, missedRoundScore, type RoundScoreResult } from '$lib/server/scoring';
 import {
 	arenaPicks,
@@ -567,7 +568,10 @@ async function processActiveRounds(
 			await voidRound(round.id, now, result);
 			continue;
 		}
-		const hardCutMs = Number(onchain.expiry) * 1000 - 60_000;
+		const hardCutMs = roundPickDeadline(
+			round.locksAt,
+			new Date(Number(onchain.expiry) * 1000)
+		).getTime();
 		if (!onchain.isResolved && onchain.status < 2 && now.getTime() < hardCutMs) continue;
 		if (!onchain.isResolved) {
 			await lockExpiredRound(round.id, now, hardCutMs, result);

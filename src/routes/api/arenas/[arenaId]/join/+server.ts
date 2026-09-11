@@ -4,6 +4,7 @@ import { getSessionProfile } from '$lib/server/auth/session';
 import { getDb } from '$lib/server/db';
 import { arenas, arenaParticipants, arenaRounds } from '$lib/server/db/schema';
 import { isUuid, readJson, stringField } from '$lib/server/http';
+import { roundPickDeadline } from '$lib/server/round-timing';
 
 export async function POST(event) {
 	const profile = await getSessionProfile(event);
@@ -22,10 +23,10 @@ export async function POST(event) {
 			.from(arenaRounds)
 			.where(and(eq(arenaRounds.arenaId, arena.id), eq(arenaRounds.roundNumber, 1)))
 			.limit(1);
-		const joinDeadline = firstRound?.marketExpiresAt
-			? firstRound.marketExpiresAt.getTime() - 60_000
-			: firstRound?.locksAt.getTime();
-		if (arena.status !== 'LIVE' || !joinDeadline || Date.now() >= joinDeadline) {
+		const joinDeadline = firstRound
+			? roundPickDeadline(firstRound.locksAt, firstRound.marketExpiresAt).getTime()
+			: null;
+		if (arena.status !== 'LIVE' || joinDeadline === null || Date.now() >= joinDeadline) {
 			return json({ error: 'Joining closed when round 1 locked.' }, { status: 409 });
 		}
 	}

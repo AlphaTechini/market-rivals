@@ -6,10 +6,10 @@ import { isUuid } from '$lib/server/http';
 import { arenaPicks, arenaParticipants, arenaRounds, profiles } from '$lib/server/db/schema';
 import { getAvatarPublicUrl } from '$lib/server/supabase';
 import { buildRoundStage } from '$lib/server/match-stage';
+import { roundPickDeadline } from '$lib/server/round-timing';
 
 const revealedStatuses = new Set(['LOCKED', 'SETTLED', 'VOIDED']);
 const changeWindowMs = 3 * 60 * 1000;
-const marketCutBufferMs = 60 * 1000;
 
 export async function GET(event) {
 	if (!isUuid(event.params.arenaId)) return json({ error: 'Invalid arena id.' }, { status: 400 });
@@ -66,9 +66,7 @@ export async function GET(event) {
 	const confirmedPicks = pickRows.filter(({ pick }) => pick.status === 'CONFIRMED');
 	const revealed = revealedStatuses.has(round.status);
 
-	const marketCutMs = round.marketExpiresAt
-		? round.marketExpiresAt.getTime() - marketCutBufferMs
-		: round.locksAt.getTime();
+	const marketCutMs = roundPickDeadline(round.locksAt, round.marketExpiresAt).getTime();
 	const now = Date.now();
 
 	let canChange = false;

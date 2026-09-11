@@ -7,6 +7,7 @@ import { getSessionProfile } from '$lib/server/auth/session';
 import { getDb } from '$lib/server/db';
 import { arenaPicks, arenaParticipants, arenaRounds } from '$lib/server/db/schema';
 import { isUuid, readJson, stringField } from '$lib/server/http';
+import { roundPickDeadline } from '$lib/server/round-timing';
 import { createDreamdexExchange } from '$lib/dreamdex/config';
 
 const decimalPattern = /^\d+(\.\d{1,18})?$/;
@@ -14,7 +15,6 @@ const rpcUrl = env.DREAMDEX_RPC_URL?.trim() || somniaShannon.rpcUrls.default.htt
 const publicClient = createPublicClient({ chain: somniaShannon, transport: http(rpcUrl) });
 
 const changeWindowMs = 3 * 60 * 1000;
-const marketCutBufferMs = 60 * 1000;
 
 function isDirection(value: string | null): value is 'UP' | 'DOWN' {
 	return value === 'UP' || value === 'DOWN';
@@ -78,9 +78,7 @@ export async function POST(event) {
 	if (!round) return json({ error: 'Round not found.' }, { status: 404 });
 
 	const now = new Date();
-	const marketCutMs = round.marketExpiresAt
-		? round.marketExpiresAt.getTime() - marketCutBufferMs
-		: round.locksAt.getTime();
+	const marketCutMs = roundPickDeadline(round.locksAt, round.marketExpiresAt).getTime();
 	if (now.getTime() >= marketCutMs) {
 		return json({ error: 'Picks are closed for this round.' }, { status: 409 });
 	}
@@ -161,9 +159,7 @@ export async function POST(event) {
 				const firstAt = existingPick.initialSubmittedAt ?? existingPick.submittedAt ?? now;
 				const changeDeadlineMs = Math.min(
 					firstAt.getTime() + changeWindowMs,
-					freshRound.marketExpiresAt
-						? freshRound.marketExpiresAt.getTime() - marketCutBufferMs
-						: freshRound.locksAt.getTime()
+					roundPickDeadline(freshRound.locksAt, freshRound.marketExpiresAt).getTime()
 				);
 				if (now.getTime() > changeDeadlineMs) {
 					throw new Error('The change window for this pick has closed.');

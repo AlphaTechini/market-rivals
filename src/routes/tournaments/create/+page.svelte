@@ -56,10 +56,10 @@
 	let sessionEnd = $derived.by(() => {
 		if (rounds === 0) return '';
 		try {
-			const last = phaseStart(rounds - 1);
-			const end = new Date(last.getTime() + 15 * 60 * 1000);
+			const windowCount = asset === 'MIX' ? Math.ceil(rounds / 2) : rounds;
+			const end = new Date(new Date(starts).getTime() + windowCount * windowMinutes * 60 * 1000);
 			const minutes = Math.round((end.getTime() - new Date(starts).getTime()) / 60000);
-			return `~${minutes} min session`;
+			return `~${minutes} min play window`;
 		} catch {
 			return '';
 		}
@@ -112,8 +112,8 @@
 			<div class="eyebrow">Host a match night</div>
 			<h1>Create your tournament</h1>
 			<p class="sub" style="margin-inline: auto">
-				Rounds ride real DreamDEX 15-minute windows. Mixed matches run BTC and ETH in the same
-				window, so a two-round match settles in about 15 minutes.
+				Rounds ride real DreamDEX 15-minute windows. Mixed matches run BTC and ETH in the same play
+				window, while final scoring waits for each selected Event Contract to resolve.
 			</p>
 		</div>
 
@@ -194,8 +194,8 @@
 					</table>
 				</div>
 				<p class="fine" style="margin-top: 10px">
-					Picks stay open until 1 minute before the DreamDEX window closes; the phases above are the
-					guided rhythm for everyone who arrives on time.
+					Picks follow the fixed phases above. Final scoring waits for each selected DreamDEX Event
+					Contract to resolve.
 				</p>
 			</div>
 
