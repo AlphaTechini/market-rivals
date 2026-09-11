@@ -4,12 +4,20 @@
 	import ArenaRing from '$lib/market-rivals/ArenaRing.svelte';
 	import BrandHeader from '$lib/market-rivals/BrandHeader.svelte';
 	import ProfileSetupModal from '$lib/market-rivals/ProfileSetupModal.svelte';
-	import { authenticateWithWallet } from '$lib/market-rivals/api';
+	import { authenticateWithWallet, fetchMyProfile } from '$lib/market-rivals/api';
 	import type { ProfileDraft } from '$lib/market-rivals/ProfileSetupModal.svelte';
 
 	let profileSetupOpen = $state(false);
 
-	function openProfileSetup() {
+	async function openProfileSetup() {
+		try {
+			if (await fetchMyProfile()) {
+				await goto(resolve('/dashboard'));
+				return;
+			}
+		} catch {
+			// The setup flow will establish a new session when none exists.
+		}
 		profileSetupOpen = true;
 	}
 
