@@ -1,6 +1,7 @@
 import { env } from '$env/dynamic/public';
 import {
 	SOMNIA_TESTNET_ADDRESSES,
+	SOMNIA_TESTNET_PRICE_FEED,
 	SomniaMarkets,
 	type SomniaMarketsConfig
 } from '@somnia-chain/markets-sdk';
@@ -23,7 +24,8 @@ export function dreamdexConfig(): SomniaMarketsConfig {
 		indexerUrl: requiredPublicEnv('PUBLIC_DREAMDEX_INDEXER_URL'),
 		chain: somniaShannon,
 		wsRpcUrl: env.PUBLIC_DREAMDEX_WS_RPC_URL?.trim() || defaultWsRpcUrl,
-		addresses: SOMNIA_TESTNET_ADDRESSES
+		addresses: SOMNIA_TESTNET_ADDRESSES,
+		priceFeed: SOMNIA_TESTNET_PRICE_FEED
 	};
 }
 

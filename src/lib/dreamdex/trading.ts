@@ -5,6 +5,7 @@ import type {
 	SomniaMarkets,
 	UnifiedMarket
 } from '@somnia-chain/markets-sdk';
+import { PRICE_FEED_DECIMALS } from '@somnia-chain/markets-sdk';
 import { discoverTradableBinaryMarkets } from './markets';
 import { createBrowserDreamdexExchange } from './wallet';
 
@@ -17,7 +18,10 @@ export type LiveBinaryTradeContext = {
 	marketAddress: Address;
 	poolAddress: Address;
 	question: string;
+	asset: string | null;
 	expiry: number;
+	liveAssetPrice: number | null;
+	openingAssetPrice: number | null;
 	upSymbol: string;
 	downSymbol: string;
 	upPrice: number | null;
@@ -51,14 +55,43 @@ function bestAsk(book: { asks: [number, number][] }): number | null {
 	return book.asks[0]?.[0] ?? null;
 }
 
+function oraclePrice(value: string | null | undefined): number | null {
+	if (!value) return null;
+	try {
+		return Number(formatUnits(BigInt(value), PRICE_FEED_DECIMALS));
+	} catch {
+		return null;
+	}
+}
+
+async function marketReferencePrices(
+	exchange: SomniaMarkets,
+	marketId: Hex,
+	asset: string | null
+): Promise<{ liveAssetPrice: number | null; openingAssetPrice: number | null }> {
+	const [livePrice, resolution] = await Promise.all([
+		asset ? exchange.client.fetchPrice(asset).catch(() => null) : Promise.resolve(null),
+		exchange.client.getMarketResolution(marketId).catch(() => null)
+	]);
+
+	return {
+		liveAssetPrice: livePrice?.price ?? null,
+		openingAssetPrice: oraclePrice(resolution?.openingAnswer?.numericValue)
+	};
+}
+
 async function tradeContextForMarket(
 	exchange: SomniaMarkets,
 	account: Address,
 	marketId: Hex,
 	onchain: MarketOnchain,
-	question: string
+	question: string,
+	asset: string | null
 ): Promise<LiveBinaryTradeContext> {
-	const markets = await exchange.loadMarkets();
+	const [markets, references] = await Promise.all([
+		exchange.loadMarkets(),
+		marketReferencePrices(exchange, marketId, asset)
+	]);
 	const unified = unifiedMarketFor(markets, marketId);
 	const outcomes = unified?.outcomes;
 	if (!unified || unified.type !== 'binary' || !outcomes || outcomes.length < 2) {
@@ -79,7 +112,9 @@ async function tradeContextForMarket(
 		marketAddress: onchain.marketAddress,
 		poolAddress: onchain.pool,
 		question,
+		asset,
 		expiry: Number(onchain.expiry),
+		...references,
 		upSymbol: up.symbol,
 		downSymbol: down.symbol,
 		upPrice: bestAsk(upBook),
@@ -101,7 +136,8 @@ export async function prepareLiveBinaryTrade(
 		account,
 		candidate.market.marketId,
 		candidate.onchain,
-		candidate.market.question
+		candidate.market.question,
+		candidate.market.asset
 	);
 }
 
@@ -121,8 +157,30 @@ export async function prepareRoundTrade(marketId: string): Promise<LiveBinaryTra
 		account,
 		marketId as Hex,
 		onchain,
-		market?.question ?? 'Live Up/Down market'
+		market?.question ?? 'Live Up/Down market',
+		market?.asset ?? null
 	);
+}
+
+async function verifyFillableLiquidity(
+	context: LiveBinaryTradeContext,
+	direction: PredictionSide,
+	slippage: number
+): Promise<void> {
+	const marketSymbol = direction === 'UP' ? context.upSymbol : context.downSymbol;
+	const book = await context.exchange.fetchOrderBook(marketSymbol, 20);
+	const best = bestAsk(book);
+	const maximumPrice = best === null ? 0 : best * (1 + slippage);
+	const fillableQuantity = book.asks.reduce(
+		(total, [price, quantity]) => total + (price <= maximumPrice ? quantity : 0),
+		0
+	);
+
+	if (fillableQuantity + Number.EPSILON < context.contractQuantity) {
+		throw new Error(
+			`Only ${fillableQuantity.toFixed(2)} of ${context.contractQuantity} ${direction} contracts are available within the 2% execution limit. Wait for liquidity and retry.`
+		);
+	}
 }
 
 export async function placeMarketIocPrediction(
@@ -137,14 +195,26 @@ export async function placeMarketIocPrediction(
 	}
 
 	const marketSymbol = direction === 'UP' ? context.upSymbol : context.downSymbol;
-	const order = await context.exchange.createOrder(
-		marketSymbol,
-		'market',
-		'buy',
-		context.contractQuantity,
-		undefined,
-		{ slippage }
-	);
+	await verifyFillableLiquidity(context, direction, slippage);
+	let order;
+	try {
+		order = await context.exchange.createOrder(
+			marketSymbol,
+			'market',
+			'buy',
+			context.contractQuantity,
+			undefined,
+			{ slippage }
+		);
+	} catch (cause) {
+		if (cause instanceof Error && cause.message.includes('ImmediateOrCancelNoFill')) {
+			throw new Error(
+				'Liquidity changed before the order reached DreamDEX. Wait for liquidity and retry.',
+				{ cause }
+			);
+		}
+		throw cause;
+	}
 	if (!order.txHash || !isHash(order.txHash))
 		throw new Error('DreamDEX returned no valid transaction hash for the order.');
 

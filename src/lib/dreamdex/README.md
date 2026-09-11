@@ -5,6 +5,7 @@ This module is the application boundary for DreamDEX Event Contracts. It uses th
 ## Architectural Decisions
 
 - Shannon testnet configuration is environment-backed and uses the SDK's official chain and address constants.
+- The native Shannon price feed supplies the displayed live BTC/USDC index, while each Event Contract's oracle opening reference remains the settlement source of truth.
 - Market discovery first uses the indexer for breadth, then verifies the live `Trading` status and expiry on-chain before a market is considered tradable.
 - Browser wallet binding is separate from market reads. No private key is accepted or stored here.
 - The SDK's binary market identity is preserved as `marketId`; the pool address is used only for the associated order-book read because pools can be recycled.

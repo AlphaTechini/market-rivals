@@ -122,6 +122,15 @@
 		return `${win >= 0 ? '+' : ''}${win.toFixed(0)} if right · ${lose.toFixed(0)} if wrong`;
 	}
 
+	function formatIndexPrice(price: number | null | undefined): string {
+		if (price === null || price === undefined) return 'Unavailable';
+		return new Intl.NumberFormat('en-US', {
+			style: 'currency',
+			currency: 'USD',
+			maximumFractionDigits: 2
+		}).format(price);
+	}
+
 	let myPick = $derived(roundDetail?.myPick ?? null);
 	let votesClosed = $derived(
 		Boolean(roundDetail && Date.now() >= new Date(roundDetail.pickDeadline).getTime())
@@ -163,11 +172,7 @@
 			>
 		</div>
 		<div class="market-line" style="margin-top: 34px">
-			<div class="price">
-				{trade
-					? `${trade.upPrice?.toFixed(4) ?? '-'} / ${trade.downPrice?.toFixed(4) ?? '-'}`
-					: 'Loading'}
-			</div>
+			<div class="price">{trade ? formatIndexPrice(trade.liveAssetPrice) : 'Loading'}</div>
 			{#if roundDetail}
 				<Countdown targetAt={roundDetail.pickDeadline} />
 			{:else}
@@ -175,6 +180,12 @@
 			{/if}
 		</div>
 		<h1 class="question">{trade?.question ?? 'Loading the live Up or Down market...'}</h1>
+		{#if trade}
+			<p class="fine">
+				DreamDEX {trade.asset ?? 'market'} index · official opening reference:
+				{formatIndexPrice(trade.openingAssetPrice)}
+			</p>
+		{/if}
 
 		{#if myPick?.status === 'CONFIRMED'}
 			<div class="notice">
