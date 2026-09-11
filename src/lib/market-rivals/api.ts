@@ -1,5 +1,6 @@
 import { createWalletClient, custom, type Address } from 'viem';
 import { somniaShannon } from '@somnia-chain/markets-sdk/chains';
+import { selectedWalletProvider } from '$lib/dreamdex/wallet-provider';
 import type { ProfileDraft } from './ProfileSetupModal.svelte';
 
 export type ApiProfile = {
@@ -292,18 +293,8 @@ export async function createArena(input: {
 	});
 }
 
-type EthereumProvider = {
-	request(args: { method: string; params?: unknown[] }): Promise<unknown>;
-};
-
-function getEthereumProvider(): EthereumProvider {
-	const provider = (globalThis as typeof globalThis & { ethereum?: EthereumProvider }).ethereum;
-	if (!provider) throw new Error('Install an EVM wallet to continue.');
-	return provider;
-}
-
 export async function authenticateWithWallet(profile: ProfileDraft): Promise<void> {
-	const provider = getEthereumProvider();
+	const provider = await selectedWalletProvider();
 	const walletClient = createWalletClient({ chain: somniaShannon, transport: custom(provider) });
 	const [account] = await walletClient.requestAddresses();
 	if (!account) throw new Error('No wallet account was selected.');

@@ -3,6 +3,7 @@ import type { SomniaMarkets } from '@somnia-chain/markets-sdk';
 import { somniaShannon } from '@somnia-chain/markets-sdk/chains';
 import type { WalletClient } from 'viem';
 import { createDreamdexExchange } from './config';
+import { selectedWalletProvider } from './wallet-provider';
 
 export type ConnectedWallet = {
 	walletClient: WalletClient;
@@ -20,16 +21,11 @@ export function unbindDreamdexWallet(exchange: SomniaMarkets): void {
 	exchange.setSigner({});
 }
 
-type EthereumProvider = {
-	request(args: { method: string; params?: unknown[] }): Promise<unknown>;
-};
-
 export async function createBrowserDreamdexExchange(): Promise<{
 	exchange: SomniaMarkets;
 	account: Address;
 }> {
-	const provider = (globalThis as typeof globalThis & { ethereum?: EthereumProvider }).ethereum;
-	if (!provider) throw new Error('Install an EVM wallet to place a prediction.');
+	const provider = await selectedWalletProvider();
 
 	const walletClient = createWalletClient({ chain: somniaShannon, transport: custom(provider) });
 	const [account] = await walletClient.requestAddresses();

@@ -1,4 +1,11 @@
 <script lang="ts">
+	import {
+		discoverWalletProviders,
+		preferredWallet,
+		rememberWallet,
+		type WalletProviderOption
+	} from '$lib/dreamdex/wallet-provider';
+
 	export type ProfileDraft = {
 		displayName: string;
 		avatarFile: File;
@@ -18,6 +25,10 @@
 	let avatarUrl = $state('');
 	let error = $state('');
 	let connecting = $state(false);
+	let wallets = $state<WalletProviderOption[]>([]);
+	let selectedWallet = $state<WalletProviderOption | null>(null);
+	let loadingWallets = $state(false);
+	let showWalletPicker = $state(true);
 
 	function reset() {
 		step = 'profile';
@@ -26,6 +37,10 @@
 		avatarUrl = '';
 		error = '';
 		connecting = false;
+		wallets = [];
+		selectedWallet = null;
+		loadingWallets = false;
+		showWalletPicker = true;
 	}
 
 	function close() {
@@ -48,7 +63,7 @@
 		error = '';
 	}
 
-	function continueToWallet(event: SubmitEvent) {
+	async function continueToWallet(event: SubmitEvent) {
 		event.preventDefault();
 		if (!displayName.trim() || !avatarFile) {
 			error = 'Enter your name and attach a profile picture to continue.';
@@ -57,6 +72,24 @@
 
 		error = '';
 		step = 'wallet';
+		loadingWallets = true;
+		try {
+			wallets = await discoverWalletProviders();
+			selectedWallet = preferredWallet(wallets);
+			showWalletPicker = !selectedWallet;
+			if (!wallets.length) error = 'Install an EVM wallet extension to continue.';
+		} catch (cause) {
+			error = cause instanceof Error ? cause.message : 'Wallet discovery failed.';
+		} finally {
+			loadingWallets = false;
+		}
+	}
+
+	function chooseWallet(wallet: WalletProviderOption) {
+		rememberWallet(wallet);
+		selectedWallet = wallet;
+		showWalletPicker = false;
+		error = '';
 	}
 
 	async function connectWallet() {
@@ -127,11 +160,30 @@
 						Connect your wallet to sign DreamDEX testnet positions. Your private key never leaves
 						your wallet.
 					</p>
+					{#if loadingWallets}
+						<p class="fine">Finding installed wallets...</p>
+					{:else if showWalletPicker}
+						<div class="wallet-picker" aria-label="Choose a wallet">
+							<p class="fine">Choose the wallet you want Market Rivals to use.</p>
+							{#each wallets as wallet (wallet.id)}
+								<button class="btn full" type="button" onclick={() => chooseWallet(wallet)}>
+									{wallet.name}
+								</button>
+							{/each}
+						</div>
+					{:else if selectedWallet}
+						<div class="notice">
+							<p>Using <strong>{selectedWallet.name}</strong> for this session.</p>
+							<button class="btn ghost" type="button" onclick={() => (showWalletPicker = true)}>
+								Change wallet
+							</button>
+						</div>
+					{/if}
 					{#if error}<p class="form-error">{error}</p>{/if}
 					<button
 						class="btn primary full"
 						type="button"
-						disabled={connecting}
+						disabled={connecting || loadingWallets || showWalletPicker || !selectedWallet}
 						onclick={connectWallet}
 					>
 						{connecting ? 'Connecting...' : 'Connect wallet'}
