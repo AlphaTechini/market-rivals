@@ -12,6 +12,8 @@ To find shared branding and header logic visit [BrandHeader.svelte](./BrandHeade
 
 To find reusable tournament card logic visit [TournamentCard.svelte](./TournamentCard.svelte).
 
+To find invite copy and social-share actions visit [ShareActions.svelte](./ShareActions.svelte).
+
 To find prototype fixture data visit [data.ts](./data.ts).
 
 The DreamDEX system connection can be found in [src/lib/dreamdex/config.ts](file:///C:/Hackathons/DreamDEX/frontend/src/lib/dreamdex/config.ts).

@@ -25,15 +25,15 @@
 		}
 	}
 
-	function shareTo(kind: 'whatsapp' | 'telegram' | 'email' | 'sms') {
+	function shareTo(kind: 'whatsapp' | 'telegram' | 'facebook' | 'x') {
 		if (!inviteUrl) return;
 		const url = encodeURIComponent(inviteUrl);
 		const text = encodeURIComponent(`Join my ${arenaName} Market Rivals tournament`);
 		const links = {
 			whatsapp: `https://wa.me/?text=${text}%20${url}`,
 			telegram: `https://t.me/share/url?url=${url}&text=${text}`,
-			email: `mailto:?subject=${encodeURIComponent('Join my Market Rivals tournament')}&body=${url}`,
-			sms: `sms:?body=${text}%20${url}`
+			facebook: `https://www.facebook.com/sharer/sharer.php?u=${url}`,
+			x: `https://x.com/intent/post?text=${text}&url=${url}`
 		};
 
 		window.open(links[kind], '_blank', 'noopener,noreferrer');
@@ -53,10 +53,8 @@
 	<button class="btn" type="button" disabled={!inviteUrl} onclick={() => shareTo('telegram')}
 		>Telegram</button
 	>
-	<button class="btn" type="button" disabled={!inviteUrl} onclick={() => shareTo('email')}
-		>Email</button
+	<button class="btn" type="button" disabled={!inviteUrl} onclick={() => shareTo('facebook')}
+		>Facebook</button
 	>
-	<button class="btn" type="button" disabled={!inviteUrl} onclick={() => shareTo('sms')}
-		>Text message</button
-	>
+	<button class="btn" type="button" disabled={!inviteUrl} onclick={() => shareTo('x')}>X</button>
 </div>
