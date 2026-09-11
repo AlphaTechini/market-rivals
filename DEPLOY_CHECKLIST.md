@@ -35,6 +35,20 @@ Copy [.env.example](./.env.example) to `.env` and fill in:
 
 The DreamDEX testnet defaults are already live endpoints; you do not need to change them.
 
+### Vercel Supabase Integration
+
+The Supabase integration in Vercel injects a different, Next.js-oriented set of names. Market Rivals now reads those names directly, so **do not duplicate them manually**:
+
+| Vercel/Supabase integration variable   | Market Rivals use                                                                |
+| -------------------------------------- | -------------------------------------------------------------------------------- |
+| `POSTGRES_URL`                         | Database connection (used when `DATABASE_URL` is absent)                         |
+| `SUPABASE_SECRET_KEY`                  | Server-side Supabase admin key (used when `SUPABASE_SERVICE_ROLE_KEY` is absent) |
+| `NEXT_PUBLIC_SUPABASE_URL`             | Supabase URL                                                                     |
+| `NEXT_PUBLIC_SUPABASE_PUBLISHABLE_KEY` | Browser Supabase key, preferred                                                  |
+| `NEXT_PUBLIC_SUPABASE_ANON_KEY`        | Browser fallback when no publishable key exists                                  |
+
+`SUPABASE_AVATARS_BUCKET` is the only app-specific optional value; it defaults to `avatars` when omitted. The app safely exposes only the URL and publishable/anon key to the browser through `/api/public-config`; it never exposes `SUPABASE_SECRET_KEY`.
+
 ## 3. Testnet wallets (you need at least two)
 
 1. Install an EVM wallet (MetaMask, Rabby, etc.).

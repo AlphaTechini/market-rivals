@@ -1,6 +1,5 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
-	import type { Pathname } from '$app/types';
 	import { onMount } from 'svelte';
 	import PresenceStatus from './PresenceStatus.svelte';
 	import { fetchMyProfile, type ApiProfile } from './api';
@@ -8,7 +7,7 @@
 	type Props = {
 		mode?: 'landing' | 'app' | 'minimal';
 		actionLabel?: string;
-		actionHref?: Pathname;
+		actionHref?: string;
 		onConnect?: () => void;
 	};
 
@@ -55,7 +54,7 @@
 			{/if}
 		</nav>
 	{:else if mode === 'minimal'}
-		<a class="btn" href={resolve(actionHref)}>{actionLabel}</a>
+		<a class="btn" href={resolve(...([actionHref] as never))}>{actionLabel}</a>
 	{:else}
 		<div class="actions">
 			<PresenceStatus />

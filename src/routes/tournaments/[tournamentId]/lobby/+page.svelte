@@ -1,7 +1,6 @@
 <script lang="ts">
-	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
-	import type { Pathname } from '$app/types';
+	import { page } from '$app/state';
 	import { onMount } from 'svelte';
 	import BrandHeader from '$lib/market-rivals/BrandHeader.svelte';
 	import Countdown from '$lib/market-rivals/Countdown.svelte';
@@ -163,7 +162,7 @@
 				</button>
 				<a
 					class="btn primary"
-					href={resolve(`/tournaments/${tournamentId}/round/1/arena` as Pathname)}
+					href={resolve(...([`/tournaments/${tournamentId}/round/1/arena`] as never))}
 					>{summary?.arena.status === 'LIVE' ? 'Open round 1' : 'Preview round 1'}</a
 				>
 			{:else}

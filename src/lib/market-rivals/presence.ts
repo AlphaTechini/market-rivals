@@ -1,21 +1,28 @@
 import { createClient, type RealtimeChannel, type SupabaseClient } from '@supabase/supabase-js';
-import { env } from '$env/dynamic/public';
 
 let client: SupabaseClient | null = null;
+let clientPromise: Promise<SupabaseClient> | null = null;
 
-function getClient(): SupabaseClient {
-	if (!env.PUBLIC_SUPABASE_URL || !env.PUBLIC_SUPABASE_ANON_KEY) {
-		throw new Error('Supabase public environment is not configured.');
-	}
-	client ??= createClient(env.PUBLIC_SUPABASE_URL, env.PUBLIC_SUPABASE_ANON_KEY);
-	return client;
+async function getClient(): Promise<SupabaseClient> {
+	if (client) return client;
+	clientPromise ??= fetch('/api/public-config')
+		.then(async (response) => {
+			if (!response.ok) throw new Error('Supabase public environment is not configured.');
+			return (await response.json()) as { supabaseUrl: string; supabaseKey: string };
+		})
+		.then(({ supabaseUrl, supabaseKey }) => {
+			client = createClient(supabaseUrl, supabaseKey);
+			return client;
+		});
+	return clientPromise;
 }
 
-export function subscribeToPresence(
+export async function subscribeToPresence(
 	presenceKey: string,
 	online: (value: boolean) => void
-): () => void {
-	const channel: RealtimeChannel = getClient().channel('market-rivals-presence', {
+): Promise<() => void> {
+	const supabase = await getClient();
+	const channel: RealtimeChannel = supabase.channel('market-rivals-presence', {
 		config: { presence: { key: presenceKey } }
 	});
 	channel.on('presence', { event: 'sync' }, () => online(true));
@@ -30,6 +37,6 @@ export function subscribeToPresence(
 
 	return () => {
 		void channel.untrack();
-		void getClient().removeChannel(channel);
+		void supabase.removeChannel(channel);
 	};
 }

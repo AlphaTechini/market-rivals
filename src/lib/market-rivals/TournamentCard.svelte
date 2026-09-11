@@ -19,6 +19,6 @@
 				<Avatar name={avatar} initials={avatar} size="small" />
 			{/each}
 		</div>
-		<a class="btn" href={resolve(tournament.href)}>{tournament.cta}</a>
+		<a class="btn" href={resolve(...([tournament.href] as never))}>{tournament.cta}</a>
 	</div>
 </article>

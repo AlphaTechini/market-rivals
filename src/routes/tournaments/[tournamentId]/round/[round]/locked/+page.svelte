@@ -2,7 +2,6 @@
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
-	import type { Pathname } from '$app/types';
 	import { onDestroy, onMount } from 'svelte';
 	import BrandHeader from '$lib/market-rivals/BrandHeader.svelte';
 	import Countdown from '$lib/market-rivals/Countdown.svelte';
@@ -43,7 +42,9 @@
 				roundDetail = detail;
 				if (detail.round.status === 'SETTLED' || detail.round.status === 'VOIDED') {
 					if (pollTimer) window.clearInterval(pollTimer);
-					await goto(resolve(`/tournaments/${arenaId!}/round/${roundNumber}/result` as Pathname));
+					await goto(
+						resolve(...([`/tournaments/${arenaId!}/round/${roundNumber}/result`] as never))
+					);
 				}
 			} catch (cause) {
 				error = cause instanceof Error ? cause.message : 'Round state could not be loaded.';

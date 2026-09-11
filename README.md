@@ -20,6 +20,8 @@ cp .env.example .env
 
 Every variable is documented in [SUPABASE_SETUP.md](./SUPABASE_SETUP.md). You need a Supabase project (Session Pooler `DATABASE_URL`, service-role key, avatar bucket, anon key) and the DreamDEX Shannon defaults from `.env.example`, which already point at the working testnet endpoints.
 
+On Vercel, the Supabase integration's auto-provisioned `POSTGRES_URL`, `SUPABASE_SECRET_KEY`, and `NEXT_PUBLIC_SUPABASE_*` variables are supported directly; see [DEPLOY_CHECKLIST.md](./DEPLOY_CHECKLIST.md#vercel-supabase-integration).
+
 3. Apply the database migration to a brand-new database (the project's remote database already has it applied through the Supabase MCP; requires the `DATABASE_URL` from step 2):
 
 ```sh

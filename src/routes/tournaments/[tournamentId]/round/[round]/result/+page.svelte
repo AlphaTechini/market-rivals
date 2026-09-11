@@ -1,7 +1,6 @@
 <script lang="ts">
-	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
-	import type { Pathname } from '$app/types';
+	import { page } from '$app/state';
 	import { onMount } from 'svelte';
 	import BrandHeader from '$lib/market-rivals/BrandHeader.svelte';
 	import PlayerName from '$lib/market-rivals/PlayerName.svelte';
@@ -190,26 +189,30 @@
 				<a
 					class="btn primary"
 					href={resolve(
-						(arenaId && isUuid(arenaId)
-							? `/tournaments/${arenaId}/round/${nextRound}/arena`
-							: `/tournaments/${nextRound}/arena`) as Pathname
+						...([
+							arenaId && isUuid(arenaId)
+								? `/tournaments/${arenaId}/round/${nextRound}/arena`
+								: `/tournaments/${nextRound}/arena`
+						] as never)
 					)}>Continue to round {nextRound}</a
 				>
 				<a
 					class="btn ghost"
 					href={resolve(
-						(arenaId && isUuid(arenaId)
-							? `/tournaments/${arenaId}/final`
-							: '/tournaments/final') as Pathname
+						...([
+							arenaId && isUuid(arenaId) ? `/tournaments/${arenaId}/final` : '/tournaments/final'
+						] as never)
 					)}>View standings</a
 				>
 			{:else}
 				<a
 					class="btn primary"
 					href={resolve(
-						(arenaId && isUuid(arenaId)
-							? `/tournaments/${arenaId}/round/${roundNumber}/locked`
-							: '/tournaments/round/locked') as Pathname
+						...([
+							arenaId && isUuid(arenaId)
+								? `/tournaments/${arenaId}/round/${roundNumber}/locked`
+								: '/tournaments/round/locked'
+						] as never)
 					)}>Back to settlement wait</a
 				>
 			{/if}

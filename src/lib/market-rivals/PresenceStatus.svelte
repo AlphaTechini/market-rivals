@@ -5,11 +5,19 @@
 	let online = $state(false);
 
 	onMount(() => {
-		try {
-			return subscribeToPresence('market-rivals-guest', (value) => (online = value));
-		} catch {
-			online = false;
-		}
+		let disposed = false;
+		let unsubscribe: (() => void) | undefined;
+		void subscribeToPresence('market-rivals-guest', (value) => (online = value))
+			.then((cleanup) => {
+				if (disposed) cleanup();
+				else unsubscribe = cleanup;
+			})
+			.catch(() => (online = false));
+
+		return () => {
+			disposed = true;
+			unsubscribe?.();
+		};
 	});
 </script>
 

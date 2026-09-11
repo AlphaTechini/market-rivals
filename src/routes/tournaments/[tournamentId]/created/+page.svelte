@@ -1,7 +1,6 @@
 <script lang="ts">
-	import { page } from '$app/state';
 	import { resolve } from '$app/paths';
-	import type { Pathname } from '$app/types';
+	import { page } from '$app/state';
 	import { onMount } from 'svelte';
 	import ArenaRing from '$lib/market-rivals/ArenaRing.svelte';
 	import BrandHeader from '$lib/market-rivals/BrandHeader.svelte';
@@ -60,9 +59,11 @@
 			<a
 				class="btn primary"
 				href={resolve(
-					(tournamentId && isUuid(tournamentId)
-						? `/tournaments/${tournamentId}/lobby`
-						: '/dashboard') as Pathname
+					...([
+						tournamentId && isUuid(tournamentId)
+							? `/tournaments/${tournamentId}/lobby`
+							: '/dashboard'
+					] as never)
 				)}>Open tournament lobby</a
 			>
 			<a class="btn ghost" href={resolve('/dashboard')}>Back to tournaments</a>

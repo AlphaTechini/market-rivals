@@ -1,5 +1,3 @@
-import type { Pathname } from '$app/types';
-
 export type Tournament = {
 	name: string;
 	status: 'JOINING' | 'LIVE';
@@ -7,7 +5,7 @@ export type Tournament = {
 	detail: string;
 	avatars: string[];
 	cta: string;
-	href: Pathname;
+	href: string;
 };
 
 export type Player = {

@@ -2,7 +2,6 @@
 	import { page } from '$app/state';
 	import { goto } from '$app/navigation';
 	import { resolve } from '$app/paths';
-	import type { Pathname } from '$app/types';
 	import { onDestroy, onMount } from 'svelte';
 	import BrandHeader from '$lib/market-rivals/BrandHeader.svelte';
 	import Countdown from '$lib/market-rivals/Countdown.svelte';
@@ -46,11 +45,11 @@
 			roundDetail = round;
 
 			if (round.round.status === 'LOCKED') {
-				await goto(resolve(`/tournaments/${id}/round/${roundNumber}/locked` as Pathname));
+				await goto(resolve(...([`/tournaments/${id}/round/${roundNumber}/locked`] as never)));
 				return;
 			}
 			if (round.round.status === 'SETTLED' || round.round.status === 'VOIDED') {
-				await goto(resolve(`/tournaments/${id}/round/${roundNumber}/result` as Pathname));
+				await goto(resolve(...([`/tournaments/${id}/round/${roundNumber}/result`] as never)));
 				return;
 			}
 

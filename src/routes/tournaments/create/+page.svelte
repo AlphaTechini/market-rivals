@@ -4,7 +4,6 @@
 	import BrandHeader from '$lib/market-rivals/BrandHeader.svelte';
 	import { createArena } from '$lib/market-rivals/api';
 	import { defaultStartTime } from '$lib/market-rivals/dates';
-	import type { Pathname } from '$app/types';
 
 	type AssetChoice = 'BTC' | 'ETH' | 'MIX';
 
@@ -94,7 +93,7 @@
 				startAt: new Date(starts).toISOString(),
 				description: description.trim()
 			});
-			await goto(resolve(`/tournaments/${arena.id}/created` as Pathname));
+			await goto(resolve(...([`/tournaments/${arena.id}/created`] as never)));
 		} catch (cause) {
 			validationError = cause instanceof Error ? cause.message : 'Tournament could not be created.';
 		} finally {
