@@ -20,6 +20,7 @@
 	let joined = $state(false);
 	let alreadyParticipant = $state(false);
 	let error = $state('');
+	let now = $state(Date.now());
 	let tournamentId = $derived(page.params.tournamentId);
 	let inviteParam = $derived(page.url.searchParams.get('invite') ?? undefined);
 	let validId = $derived(Boolean(tournamentId && isUuid(tournamentId)));
@@ -44,6 +45,11 @@
 		} finally {
 			loading = false;
 		}
+	});
+
+	onMount(() => {
+		const interval = window.setInterval(() => (now = Date.now()), 1_000);
+		return () => window.clearInterval(interval);
 	});
 
 	async function joinCurrentArena() {
@@ -77,6 +83,20 @@
 		summary ? new Date(summary.arena.startAt).getTime() > Date.now() : false
 	);
 	let rounds = $derived(summary?.arena.roundCount ?? 0);
+	let firstRoundJoinDeadline = $derived.by(() => {
+		const firstRound = summary?.rounds.find((round) => round.roundNumber === 1);
+		if (!firstRound) return null;
+		return (
+			new Date(firstRound.marketExpiresAt ?? firstRound.locksAt).getTime() -
+			(firstRound.marketExpiresAt ? 60_000 : 0)
+		);
+	});
+	let acceptsPlayers = $derived(
+		summary?.arena.status === 'JOINING' ||
+			(summary?.arena.status === 'LIVE' &&
+				firstRoundJoinDeadline !== null &&
+				now < firstRoundJoinDeadline)
+	);
 </script>
 
 <svelte:head><title>Tournament Lobby | Market Rivals</title></svelte:head>
@@ -149,7 +169,7 @@
 				<button
 					class="btn primary"
 					type="button"
-					disabled={joining || joined}
+					disabled={joining || joined || !acceptsPlayers}
 					onclick={joinCurrentArena}
 				>
 					{joined
@@ -158,7 +178,9 @@
 							? 'Joining...'
 							: alreadyParticipant
 								? 'Joined'
-								: 'Join arena'}
+								: acceptsPlayers
+									? 'Join arena'
+									: 'Joining closed'}
 				</button>
 				<a
 					class="btn primary"

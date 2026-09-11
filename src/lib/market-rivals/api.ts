@@ -41,6 +41,8 @@ export type ArenaRoundResult = {
 	status: string;
 	winningSide: 'UP' | 'DOWN' | null;
 	opensAt: string;
+	locksAt: string;
+	marketExpiresAt: string | null;
 	picks: Array<{
 		participantId: string;
 		selectedSide: 'UP' | 'DOWN';

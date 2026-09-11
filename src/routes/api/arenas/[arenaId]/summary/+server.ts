@@ -55,6 +55,8 @@ export async function GET(event) {
 		status: string;
 		winningSide: string | null;
 		opensAt: Date;
+		locksAt: Date;
+		marketExpiresAt: Date | null;
 		picks: Array<{
 			participantId: string;
 			selectedSide: 'UP' | 'DOWN';
@@ -75,6 +77,8 @@ export async function GET(event) {
 				status: round.status,
 				winningSide: round.winningSide,
 				opensAt: round.opensAt,
+				locksAt: round.locksAt,
+				marketExpiresAt: round.marketExpiresAt,
 				picks: []
 			};
 			rounds.push(entry);
