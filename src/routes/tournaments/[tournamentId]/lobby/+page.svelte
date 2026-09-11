@@ -1,5 +1,6 @@
 <script lang="ts">
 	import { resolve } from '$app/paths';
+	import { goto } from '$app/navigation';
 	import { page } from '$app/state';
 	import { onMount } from 'svelte';
 	import BrandHeader from '$lib/market-rivals/BrandHeader.svelte';
@@ -21,6 +22,7 @@
 	let alreadyParticipant = $state(false);
 	let error = $state('');
 	let now = $state(Date.now());
+	let routedToRound = $state(false);
 	let tournamentId = $derived(page.params.tournamentId);
 	let inviteParam = $derived(page.url.searchParams.get('invite') ?? undefined);
 	let validId = $derived(Boolean(tournamentId && isUuid(tournamentId)));
@@ -80,7 +82,7 @@
 			: []
 	);
 	let arenaStartsInFuture = $derived(
-		summary ? new Date(summary.arena.startAt).getTime() > Date.now() : false
+		summary ? new Date(summary.arena.startAt).getTime() > now : false
 	);
 	let rounds = $derived(summary?.arena.roundCount ?? 0);
 	let firstRoundJoinDeadline = $derived.by(() => {
@@ -97,6 +99,14 @@
 				firstRoundJoinDeadline !== null &&
 				now < firstRoundJoinDeadline)
 	);
+
+	$effect(() => {
+		const id = tournamentId;
+		const startAt = summary?.arena.startAt;
+		if (!id || !startAt || !joined || routedToRound || now < new Date(startAt).getTime()) return;
+		routedToRound = true;
+		void goto(resolve(...([`/tournaments/${id}/round/1/arena`] as never)));
+	});
 </script>
 
 <svelte:head><title>Tournament Lobby | Market Rivals</title></svelte:head>
@@ -185,7 +195,7 @@
 				<a
 					class="btn primary"
 					href={resolve(...([`/tournaments/${tournamentId}/round/1/arena`] as never))}
-					>{summary?.arena.status === 'LIVE' ? 'Open round 1' : 'Preview round 1'}</a
+					>{arenaStartsInFuture ? 'Preview round 1' : 'Open round 1'}</a
 				>
 			{:else}
 				<a class="btn primary" href={resolve('/dashboard')}>Browse live arenas</a>
